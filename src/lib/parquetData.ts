@@ -157,11 +157,12 @@ function emptyState(id: string): DatasetState {
 const STATE: Map<string, DatasetState> = new Map(DATASETS.map((d) => [d.id, emptyState(d.id)]));
 const listeners = new Set<() => void>();
 
+let snapshot: DatasetState[] = DATASETS.map((d) => getState(d.id));
 export function getState(id: string): DatasetState {
   return STATE.get(id) ?? emptyState(id);
 }
 export function getAllStates(): DatasetState[] {
-  return DATASETS.map((d) => getState(d.id));
+  return snapshot;
 }
 export function subscribe(cb: () => void) {
   listeners.add(cb);
@@ -172,6 +173,7 @@ export function subscribe(cb: () => void) {
 function update(id: string, patch: Partial<DatasetState>) {
   const cur = STATE.get(id) ?? emptyState(id);
   STATE.set(id, { ...cur, ...patch });
+  snapshot = DATASETS.map((d) => STATE.get(d.id) ?? emptyState(d.id));
   listeners.forEach((l) => l());
 }
 
