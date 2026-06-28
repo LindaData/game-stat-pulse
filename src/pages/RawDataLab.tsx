@@ -1458,7 +1458,8 @@ function DownloadsTab({ dataset, state }: { dataset: DatasetDef; state: DatasetS
     setBusy(filename);
     try {
       const buf = await exportCsv(sql);
-      downloadBlob(filename, new Blob([buf], { type: mime }));
+      const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+      downloadBlob(filename, new Blob([ab], { type: mime }));
     } catch (e) {
       alert(`Failed: ${(e as Error).message}`);
     } finally {
