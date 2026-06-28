@@ -48,7 +48,7 @@ jobs:
       - name: Build review data catalog
         run: |
           python scripts/build_data_lake.py
-          python scripts/fetch_api_football.py
+          python scripts/run_api_football_review.py
           python scripts/profile_datasets.py
           python scripts/validate_datasets.py
 
