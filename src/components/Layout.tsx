@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Home, Trophy, BarChart3, Activity } from "lucide-react";
+import { Home, Trophy, BarChart3, Activity, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { to: "/", label: "Home", icon: Home, end: true },
   { to: "/nba", label: "NBA", icon: Trophy },
   { to: "/mlb", label: "MLB", icon: Activity },
+  { to: "/raw", label: "Raw Data", icon: Database },
   { to: "/status", label: "Status", icon: BarChart3 },
 ];
 
