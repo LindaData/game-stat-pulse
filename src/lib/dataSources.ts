@@ -198,8 +198,23 @@ export async function loadSource(src: SourceDef): Promise<LoadResult> {
 }
 
 export async function loadAll(): Promise<Record<string, LoadResult>> {
-  const results = await Promise.all(SOURCES.map(loadSource));
+  const settled = await Promise.allSettled(SOURCES.map(loadSource));
   const map: Record<string, LoadResult> = {};
-  results.forEach((r) => (map[r.key] = r));
+  settled.forEach((s, i) => {
+    const src = SOURCES[i];
+    if (s.status === "fulfilled") {
+      map[s.value.key] = s.value;
+    } else {
+      map[src.key] = {
+        key: src.key,
+        data: null,
+        rows: 0,
+        origin: "empty",
+        fetchedAt: new Date().toISOString(),
+        url: src.url,
+        error: String(s.reason),
+      };
+    }
+  });
   return map;
 }
