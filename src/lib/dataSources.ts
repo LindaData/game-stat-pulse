@@ -18,6 +18,8 @@ export const SOURCES: SourceDef[] = [
   { key: "live_manifest", label: "Live Manifest", kind: "json", url: `${BASE}/live_manifest.json` },
   { key: "nba_live", label: "NBA Live", kind: "json", url: `${BASE}/nba_live.json` },
   { key: "mlb_live", label: "MLB Live", kind: "json", url: `${BASE}/mlb_live.json` },
+  { key: "basketball_snapshot", label: "NBA Snapshot", kind: "json", url: `${BASE}/basketball_snapshot.json` },
+  { key: "baseball_snapshot", label: "MLB Snapshot", kind: "json", url: `${BASE}/baseball_snapshot.json` },
   {
     key: "basketball_games",
     label: "NBA Games (season)",
