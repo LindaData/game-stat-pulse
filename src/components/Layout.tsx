@@ -1,28 +1,39 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Home, Trophy, BarChart3, Activity, Database } from "lucide-react";
+import { Database, LayoutGrid, BookOpen, ShieldCheck, ListChecks, Activity, FlaskConical, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBasketCount } from "@/pages/ReviewBasket";
 
 const navItems = [
-  { to: "/", label: "Home", icon: Home, end: true },
-  { to: "/nba", label: "NBA", icon: Trophy },
-  { to: "/mlb", label: "MLB", icon: Activity },
-  { to: "/raw", label: "Raw Data", icon: Database },
-  { to: "/status", label: "Status", icon: BarChart3 },
+  { to: "/", label: "Datasets", icon: LayoutGrid, end: true },
+  { to: "/coverage", label: "Coverage", icon: LayoutGrid },
+  { to: "/dictionary", label: "Dictionary", icon: BookOpen },
+  { to: "/quality", label: "Quality", icon: ShieldCheck },
+  { to: "/basket", label: "Review", icon: ListChecks },
+  { to: "/status", label: "Status", icon: Activity },
+];
+
+const mobileItems = [
+  { to: "/", label: "Datasets", icon: LayoutGrid, end: true },
+  { to: "/explore", label: "Explore", icon: Database },
+  { to: "/basket", label: "Review", icon: ListChecks },
+  { to: "/coverage", label: "Coverage", icon: LayoutGrid },
+  { to: "/status", label: "Status", icon: Activity },
 ];
 
 export default function Layout() {
+  const basketCount = useBasketCount();
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-30 bg-[hsl(var(--navy-deep))]/90 backdrop-blur border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
-              L
+              G
             </div>
             <div className="leading-tight">
-              <div className="text-sm font-semibold text-foreground">LindaData</div>
-              <div className="text-[10px] uppercase tracking-wider text-primary">Sports Hub</div>
+              <div className="text-sm font-semibold text-foreground">Game Stat Pulse</div>
+              <div className="text-[10px] uppercase tracking-wider text-primary">Raw sports-data review</div>
             </div>
           </div>
           <nav className="hidden md:flex items-center gap-1">
@@ -33,7 +44,7 @@ export default function Layout() {
                 end={item.end}
                 className={({ isActive }) =>
                   cn(
-                    "px-3 py-2 rounded-md text-sm font-medium transition",
+                    "px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-1.5",
                     isActive
                       ? "bg-primary/15 text-primary"
                       : "text-foreground/70 hover:text-foreground hover:bg-white/5",
@@ -41,26 +52,50 @@ export default function Layout() {
                 }
               >
                 {item.label}
+                {item.to === "/basket" && basketCount > 0 && (
+                  <span className="text-[10px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                    {basketCount}
+                  </span>
+                )}
               </NavLink>
             ))}
+            <NavLink
+              to="/explore"
+              className={({ isActive }) =>
+                cn(
+                  "px-3 py-2 rounded-md text-sm font-medium transition flex items-center gap-1.5",
+                  isActive
+                    ? "bg-primary/15 text-primary"
+                    : "text-foreground/70 hover:text-foreground hover:bg-white/5",
+                )
+              }
+            >
+              <Database className="w-4 h-4" /> Explore
+            </NavLink>
+            <span
+              aria-disabled="true"
+              title="Coming in a later phase"
+              className="px-3 py-2 rounded-md text-sm font-medium text-foreground/30 flex items-center gap-1.5 cursor-not-allowed"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <FlaskConical className="w-4 h-4" /> Models
+            </span>
           </nav>
         </div>
       </header>
 
-      {/* Main */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-5 pb-24 md:pb-10">
         <Outlet />
       </main>
 
-      {/* Footer */}
       <footer className="hidden md:block border-t border-white/10 py-4 text-center text-xs text-muted-foreground">
-        Historical research data sourced from public LindaData repository. No betting claims.
+        Game Stat Pulse — raw and normalized sports-data snapshots for research and domain review.
       </footer>
 
       {/* Bottom mobile nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur border-t border-white/10">
         <ul className="grid grid-cols-5">
-          {navItems.map((item) => {
+          {mobileItems.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.to}>
@@ -69,13 +104,18 @@ export default function Layout() {
                   end={item.end}
                   className={({ isActive }) =>
                     cn(
-                      "flex flex-col items-center justify-center py-2.5 gap-0.5 text-[11px]",
+                      "flex flex-col items-center justify-center py-2.5 gap-0.5 text-[11px] relative",
                       isActive ? "text-primary" : "text-foreground/60",
                     )
                   }
                 >
                   <Icon className="w-5 h-5" />
                   {item.label}
+                  {item.to === "/basket" && basketCount > 0 && (
+                    <span className="absolute top-1 right-3 text-[9px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[16px] text-center">
+                      {basketCount}
+                    </span>
+                  )}
                 </NavLink>
               </li>
             );
