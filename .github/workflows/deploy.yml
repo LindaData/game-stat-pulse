@@ -49,9 +49,12 @@ jobs:
       - run: bun run test
       - run: bun run build
 
-      - name: Add generated review data to the site
+      - name: Add limited review samples to the site
         run: |
-          cp -R build dist/data
+          mkdir -p dist/data/catalog
+          cp -R build/samples dist/data/samples
+          cp -R build/metadata dist/data/metadata
+          python -c 'import json; p=json.load(open("build/catalog/catalog.json")); [(e.update({"parquet_url":None,"raw_json_url":None,"raw_json_prefix":None,"review_scope":"all_discovered_columns_limited_rows"})) for e in p.get("entries",[]) if isinstance(e,dict)]; json.dump(p,open("dist/data/catalog/catalog.json","w"),indent=2)'
           cat > dist/data-source.json <<'EOF'
           {
             "catalog_url": "https://lindadata.github.io/game-stat-pulse/data/catalog/catalog.json",
