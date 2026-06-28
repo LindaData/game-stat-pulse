@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NBA from "./pages/NBA";
 import MLB from "./pages/MLB";
 import Status from "./pages/Status";
+import RawDataLab from "./pages/RawDataLab";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
