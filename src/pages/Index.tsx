@@ -85,7 +85,7 @@ export default function Index() {
         )}
       </section>
 
-      <section className="grid sm:grid-cols-2 gap-3">
+      <section className="grid sm:grid-cols-3 gap-3">
         <Link
           to="/nba"
           className="surface-card p-5 hover:ring-2 hover:ring-primary transition"
@@ -104,6 +104,16 @@ export default function Index() {
           <div className="text-xl font-semibold text-card-foreground">MLB Hub →</div>
           <div className="text-sm text-muted-foreground mt-1">
             Live scores, standings, and full season game log.
+          </div>
+        </Link>
+        <Link
+          to="/raw"
+          className="surface-card p-5 hover:ring-2 hover:ring-primary transition"
+        >
+          <div className="text-xs uppercase tracking-wider text-primary mb-1">Research</div>
+          <div className="text-xl font-semibold text-card-foreground">Explore raw datasets →</div>
+          <div className="text-sm text-muted-foreground mt-1">
+            Query Parquet files in your browser. CSV download available.
           </div>
         </Link>
       </section>
