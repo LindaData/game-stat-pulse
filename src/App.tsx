@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataProvider } from "@/context/DataContext";
 import Layout from "@/components/Layout";
+import Approval from "./pages/Approval";
 import Datasets from "./pages/Datasets";
 import Coverage from "./pages/Coverage";
 import Dictionary from "./pages/Dictionary";
@@ -28,7 +29,8 @@ const App = () => (
         <BrowserRouter basename={basename || "/"}>
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/" element={<Datasets />} />
+              <Route path="/" element={<Approval />} />
+              <Route path="/approval" element={<Approval />} />
               <Route path="/datasets" element={<Datasets />} />
               <Route path="/coverage" element={<Coverage />} />
               <Route path="/dictionary" element={<Dictionary />} />
