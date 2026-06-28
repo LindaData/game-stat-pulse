@@ -27,6 +27,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/nba" element={<NBA />} />
               <Route path="/mlb" element={<MLB />} />
+              <Route path="/raw" element={<RawDataLab />} />
               <Route path="/status" element={<Status />} />
               <Route path="*" element={<NotFound />} />
             </Route>
