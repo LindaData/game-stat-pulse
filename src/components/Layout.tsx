@@ -87,11 +87,11 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-5 pb-24 md:pb-10">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-5 pb-24 lg:pb-10">
         <Outlet />
       </main>
 
-      <footer className="hidden md:block border-t border-white/10 py-4 text-center text-xs text-muted-foreground">
+      <footer className="hidden lg:block border-t border-white/10 py-4 text-center text-xs text-muted-foreground">
         Review and approve source data before model development begins.
       </footer>
 
