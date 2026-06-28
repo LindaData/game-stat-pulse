@@ -1,471 +1,638 @@
-import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Download, Copy, X, Database } from "lucide-react";
-import { useData } from "@/context/DataContext";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+  RefreshCw,
+  Download,
+  Copy,
+  X,
+  Database,
+  Search,
+  Filter,
+  FileSpreadsheet,
+  FileJson,
+  Info,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatusBadge } from "@/components/StatusBadge";
-import { JsonTree } from "@/components/JsonTree";
 import {
   DATASETS,
-  getSourceFor,
-  profileRows,
-  qualityReport,
-  sampleRows,
-  type SampleMode,
   type DatasetDef,
-  type FieldProfile,
-  downloadText,
-  downloadOriginal,
-  rowsToCsv,
-  resultRowsFor,
-  copyToClipboard,
-  inferType,
-  isEmpty,
-} from "@/lib/rawData";
+  type DatasetState,
+  type LoadStatus,
+  loadDataset,
+  subscribe,
+  getAllStates,
+  getState,
+  quoteIdent,
+  sqlString,
+  saveSetting,
+  loadSetting,
+} from "@/lib/parquetData";
+import { exportCsv, onInitProgress, runSql, type InitProgress } from "@/lib/duck";
 
-type TabKey = "explorer" | "schema" | "quality" | "json" | "lineage";
+type TabKey = "explore" | "schema" | "quality" | "downloads" | "lineage";
 
+/* ====================== shared subscription hook ====================== */
+function useDatasetStates(): DatasetState[] {
+  return useSyncExternalStore(
+    (cb) => subscribe(cb),
+    () => getAllStates(),
+    () => getAllStates(),
+  );
+}
+
+function useInitProgress(): InitProgress {
+  const [p, setP] = useState<InitProgress>({ stage: "idle" });
+  useEffect(() => onInitProgress(setP), []);
+  return p;
+}
+
+const STATUS_LABEL: Record<LoadStatus, string> = {
+  idle: "Idle",
+  loading: "Loading",
+  ready: "Ready",
+  csv_fallback: "CSV fallback",
+  cached: "Cached",
+  partial: "Partial",
+  unavailable: "Unavailable",
+};
+
+function StatusChip({ status }: { status: LoadStatus }) {
+  const map: Record<LoadStatus, string> = {
+    idle: "bg-muted text-muted-foreground border border-white/10",
+    loading: "bg-sky-500/15 text-sky-300 border border-sky-500/30",
+    ready: "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30",
+    csv_fallback: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
+    cached: "bg-sky-500/15 text-sky-300 border border-sky-500/30",
+    partial: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
+    unavailable: "bg-red-500/15 text-red-300 border border-red-500/30",
+  };
+  const icon: Record<LoadStatus, string> = {
+    idle: "•",
+    loading: "◌",
+    ready: "●",
+    csv_fallback: "▲",
+    cached: "■",
+    partial: "▲",
+    unavailable: "✕",
+  };
+  return (
+    <span
+      role="status"
+      aria-label={`Dataset status: ${STATUS_LABEL[status]}`}
+      className={`chip ${map[status]}`}
+    >
+      <span aria-hidden>{icon[status]}</span>
+      {STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+/* ============================ ROOT ============================ */
 export default function RawDataLab() {
-  const { results, loading, lastRefresh, refresh } = useData();
-  const [datasetId, setDatasetId] = useState<string>(DATASETS[0].id);
-  const dataset = DATASETS.find((d) => d.id === datasetId) ?? DATASETS[0];
-  const source = getSourceFor(dataset);
-  const result = results[dataset.sourceKey];
+  const states = useDatasetStates();
+  const initProgress = useInitProgress();
 
-  const [tab, setTab] = useState<TabKey>("explorer");
+  const [selectedId, setSelectedId] = useState<string>(() => loadSetting("selectedId", DATASETS[0].id));
+  const [tab, setTab] = useState<TabKey>("explore");
+
+  useEffect(() => saveSetting("selectedId", selectedId), [selectedId]);
+
+  // Lazy boot: load the selected dataset on first reach
   useEffect(() => {
-    // reset to explorer (or json for json datasets) when dataset changes
-    setTab(dataset.kind === "json" ? "json" : "explorer");
-  }, [datasetId, dataset.kind]);
+    const s = getState(selectedId);
+    if (s.status === "idle") void loadDataset(selectedId);
+  }, [selectedId]);
 
-  const rows = useMemo(() => resultRowsFor(result), [result]);
-  const isCsv = dataset.kind === "csv";
+  const dataset = DATASETS.find((d) => d.id === selectedId) ?? DATASETS[0];
+  const state = states.find((s) => s.id === selectedId) ?? getState(selectedId);
+
+  const refresh = useCallback(
+    (id: string) => loadDataset(id, { bustCache: true }),
+    [],
+  );
+  const refreshAll = useCallback(async () => {
+    await Promise.allSettled(DATASETS.map((d) => loadDataset(d.id, { bustCache: true })));
+  }, []);
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
+      <header className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <Database className="w-6 h-6 text-primary" />
+            <Database className="w-6 h-6 text-primary" aria-hidden />
             Raw Data Lab
           </h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-            Browser-based explorer over the public LindaData sports-data files. Historical research
-            data only — no betting, profitability, or prediction claims.
+            Browser-based explorer powered by DuckDB-WASM and Parquet. Historical research only —
+            no betting, profitability, or prediction claims.
           </p>
         </div>
-        <Button onClick={() => refresh()} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Retry / Refresh
-        </Button>
-      </div>
-
-      {/* Dataset selector */}
-      <div className="surface-card p-3">
-        <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
-          Dataset
-        </label>
-        <select
-          value={datasetId}
-          onChange={(e) => setDatasetId(e.target.value)}
-          className="mt-1 w-full bg-background text-foreground border border-input rounded-md px-3 py-2 text-sm"
-        >
-          {(["NBA", "MLB", "Meta"] as const).map((group) => (
-            <optgroup key={group} label={group}>
-              {DATASETS.filter((d) => d.group === group).map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-
-        {/* Dataset meta */}
-        <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-          <Info label="Filename" value={dataset.filename} />
-          <Info label="Type" value={dataset.kind.toUpperCase()} />
-          <Info label="Rows" value={result ? result.rows.toLocaleString() : "—"} />
-          <Info
-            label="Fields"
-            value={
-              isCsv && rows.length
-                ? String(new Set(rows.flatMap((r) => Object.keys(r))).size)
-                : dataset.kind === "json"
-                  ? "—"
-                  : "0"
-            }
-          />
-          <Info label="Group" value={dataset.group} />
-          <Info label="Season" value={dataset.season ?? "—"} />
-          <Info
-            label="Origin"
-            value={result?.origin === "fallback" ? "Fallback file" : result?.origin === "cache" ? "Browser cache" : result?.origin === "network" ? "Live network" : "Unavailable"}
-          />
-          <Info
-            label="Last refresh"
-            value={result ? new Date(result.fetchedAt).toLocaleString() : "—"}
-          />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={refreshAll}
+            className="gap-2 min-h-[44px]"
+            aria-label="Retry failed datasets"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Retry failed
+          </Button>
         </div>
+      </header>
 
-        <a
-          href={result?.url ?? source.url}
-          target="_blank"
-          rel="noreferrer"
-          className="block mt-3 text-[11px] text-primary break-all hover:underline"
-        >
-          {result?.url ?? source.url}
-        </a>
-
-        <div className="mt-3 flex items-center gap-2 flex-wrap">
-          {result ? <StatusBadge origin={result.origin} /> : <span className="chip bg-muted text-muted-foreground">Loading…</span>}
-          {result?.origin === "fallback" && (
-            <span className="text-[11px] text-amber-400">
-              Showing smaller fallback file — full-season file unavailable.
-            </span>
-          )}
-          {result?.origin === "cache" && (
-            <span className="text-[11px] text-sky-300">
-              Network failed — showing cached copy from {new Date(result.fetchedAt).toLocaleString()}.
-            </span>
-          )}
-          {result?.origin === "empty" && (
-            <span className="text-[11px] text-red-400">
-              No data available. {result.error}
-            </span>
-          )}
+      {/* Engine status */}
+      {initProgress.stage !== "ready" && initProgress.stage !== "idle" && (
+        <div className="surface-card p-3 text-sm">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-primary" />
+            <span className="text-card-foreground font-medium">DuckDB engine</span>
+            <span className="text-muted-foreground">{initProgress.message}</span>
+          </div>
         </div>
+      )}
+      {initProgress.stage === "error" && (
+        <div className="surface-card p-3 text-sm text-red-500">
+          DuckDB failed to start: {initProgress.message}
+        </div>
+      )}
+
+      {/* Transparency notice */}
+      <div
+        className="text-[12px] text-muted-foreground border border-white/5 rounded-md p-3 bg-white/[0.02] flex gap-2"
+        role="note"
+      >
+        <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-primary" aria-hidden />
+        <p>
+          Raw Data Lab provides public historical and live sports-data snapshots for research and
+          development. Parquet is used for efficient storage and analysis. CSV downloads are
+          available for broader compatibility.
+        </p>
       </div>
 
-      {/* Notice */}
-      <div className="text-[11px] text-muted-foreground border border-white/5 rounded-md p-3 bg-white/[0.02]">
-        Raw Data Lab displays public historical and live sports-data snapshots for research and
-        development. The visual preview may show a sample for performance, while full source files
-        remain available for download.
-      </div>
+      {/* Dataset cards */}
+      <section aria-label="Datasets">
+        <h2 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Datasets</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {DATASETS.map((d) => {
+            const s = states.find((x) => x.id === d.id) ?? getState(d.id);
+            const selected = d.id === selectedId;
+            return (
+              <button
+                key={d.id}
+                onClick={() => setSelectedId(d.id)}
+                aria-pressed={selected}
+                className={`surface-card text-left p-3 min-h-[96px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transition ${
+                  selected ? "ring-2 ring-primary" : "hover:bg-white/[0.04]"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-card-foreground truncate">{d.display_name}</div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {d.sport} · {d.dataset_type}
+                      {d.season ? ` · ${d.season}` : ""}
+                    </div>
+                  </div>
+                  <StatusChip status={s.status} />
+                </div>
+                <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[11px]">
+                  <DT label="Format" value={formatFormat(s)} />
+                  <DT label="Rows" value={s.rowCount ? s.rowCount.toLocaleString() : "—"} />
+                  <DT label="Size" value={formatBytes(s.fileSizeBytes)} />
+                  <DT label="Loaded" value={shortTime(s.loadedAt)} />
+                </dl>
+                {(s.earliestDate || s.latestDate) && (
+                  <div className="mt-1.5 text-[11px] text-muted-foreground truncate">
+                    {shortDate(s.earliestDate)} → {shortDate(s.latestDate)}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto -mx-1 px-1 pb-1">
-        {(
-          [
-            isCsv && { k: "explorer", label: "Explorer" },
-            { k: "json", label: "JSON" },
-            isCsv && { k: "schema", label: "Schema" },
-            isCsv && { k: "quality", label: "Data Quality" },
-            { k: "lineage", label: "Lineage" },
-          ].filter(Boolean) as { k: TabKey; label: string }[]
-        ).map((t) => (
+      <nav aria-label="Sections" className="flex gap-1 overflow-x-auto -mx-1 px-1 pb-1 sticky top-14 z-20 bg-background/80 backdrop-blur">
+        {([
+          { k: "explore", label: "Explore" },
+          { k: "schema", label: "Schema" },
+          { k: "quality", label: "Quality" },
+          { k: "downloads", label: "Downloads" },
+          { k: "lineage", label: "Lineage" },
+        ] as { k: TabKey; label: string }[]).map((t) => (
           <button
             key={t.k}
             onClick={() => setTab(t.k)}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap ${
-              tab === t.k ? "bg-primary text-primary-foreground" : "bg-white/5 text-foreground/70"
+            aria-current={tab === t.k ? "page" : undefined}
+            className={`min-h-[44px] px-4 rounded-md text-sm font-medium whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+              tab === t.k ? "bg-primary text-primary-foreground" : "bg-white/5 text-foreground/80"
             }`}
           >
             {t.label}
           </button>
         ))}
+      </nav>
+
+      {/* Dataset-level refresh */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground -mt-2">
+        <div className="truncate">
+          <strong className="text-foreground">{dataset.display_name}</strong>
+          {state.format && <span className="ml-2">· {state.format.toUpperCase()}</span>}
+          {state.status === "csv_fallback" && (
+            <span className="ml-2 text-amber-400">Parquet file not yet available — using CSV fallback.</span>
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="min-h-[36px]"
+          onClick={() => refresh(dataset.id)}
+          disabled={state.status === "loading"}
+        >
+          <RefreshCw className={`w-3 h-3 ${state.status === "loading" ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Body */}
-      {tab === "explorer" && isCsv && <ExplorerTab dataset={dataset} rows={rows} />}
-      {tab === "schema" && isCsv && <SchemaTab rows={rows} dataset={dataset} />}
-      {tab === "quality" && isCsv && <QualityTab rows={rows} dataset={dataset} />}
-      {tab === "json" && (
-        <JsonTab
-          data={result?.data}
-          dataset={dataset}
-          sourceUrl={result?.url ?? source.url}
-        />
+      {state.status === "loading" && <SkeletonRows />}
+      {state.status === "unavailable" && (
+        <div className="surface-card p-4 text-sm">
+          <div className="text-red-400 font-medium">Dataset unavailable</div>
+          <div className="text-muted-foreground mt-1">{state.error}</div>
+          <Button className="mt-3" size="sm" onClick={() => refresh(dataset.id)}>
+            Retry
+          </Button>
+        </div>
       )}
-      {tab === "lineage" && <LineageTab dataset={dataset} rows={rows} />}
-
-      {lastRefresh && (
-        <p className="text-[11px] text-muted-foreground">
-          Last refresh attempt: {new Date(lastRefresh).toLocaleString()}
-        </p>
+      {state.table && state.status !== "loading" && (
+        <>
+          {tab === "explore" && <ExploreTab dataset={dataset} state={state} />}
+          {tab === "schema" && <SchemaTab dataset={dataset} state={state} />}
+          {tab === "quality" && <QualityTab dataset={dataset} state={state} />}
+          {tab === "downloads" && <DownloadsTab dataset={dataset} state={state} />}
+          {tab === "lineage" && <LineageTab dataset={dataset} state={state} />}
+        </>
       )}
     </div>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function SkeletonRows() {
   return (
-    <div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-foreground font-medium truncate" title={value}>
-        {value}
-      </div>
+    <div className="space-y-2" aria-busy="true" aria-label="Loading dataset">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="surface-card p-4 animate-pulse">
+          <div className="h-3 w-2/3 bg-muted rounded mb-2" />
+          <div className="h-3 w-1/3 bg-muted rounded" />
+        </div>
+      ))}
     </div>
   );
 }
 
-/* ============================== EXPLORER ============================== */
-
-function ExplorerTab({ dataset, rows }: { dataset: DatasetDef; rows: Record<string, unknown>[] }) {
-  const allFields = useMemo(
-    () => Array.from(rows.reduce((acc, r) => (Object.keys(r).forEach((k) => acc.add(k)), acc), new Set<string>())),
-    [rows],
+function DT({ label, value }: { label: string; value: string }) {
+  return (
+    <>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-card-foreground text-right truncate">{value}</dd>
+    </>
   );
+}
+
+function formatFormat(s: DatasetState): string {
+  if (!s.format) return "—";
+  if (s.format === "parquet") return "Parquet";
+  if (s.format === "json") return "JSON fallback";
+  return "CSV fallback";
+}
+function formatBytes(n: number | null): string {
+  if (n == null) return "—";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(2)} MB`;
+}
+function shortTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+function shortDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? iso.slice(0, 10) : d.toLocaleDateString();
+}
+
+/* ============================ EXPLORE ============================ */
+
+type SampleMode = "latest" | "earliest" | "first" | "random" | "full";
+
+function ExploreTab({ dataset, state }: { dataset: DatasetDef; state: DatasetState }) {
+  const columns = state.columns;
+  const dateCol = useMemo(
+    () => columns.find((c) => /^date_utc$|date|timestamp/i.test(c.name))?.name ?? null,
+    [columns],
+  );
+  const defaultCols = useMemo(() => pickDefaultColumns(dataset, columns.map((c) => c.name)), [dataset, columns]);
+
   const [search, setSearch] = useState("");
-  const [colFilters, setColFilters] = useState<Record<string, string>>({});
-  const [visibleCols, setVisibleCols] = useState<string[]>(allFields);
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [visibleCols, setVisibleCols] = useState<string[]>(defaultCols);
+  const [sortCol, setSortCol] = useState<string | null>(dateCol);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(50);
-  const [sampleMode, setSampleMode] = useState<SampleMode>("full");
-  const [sampleSize, setSampleSize] = useState(100);
+  const [pageSize, setPageSize] = useState(25);
+  const [sampleMode, setSampleMode] = useState<SampleMode>("latest");
+  const [sampleSize, setSampleSize] = useState(25);
   const [seed, setSeed] = useState(1);
-  const [colChooserOpen, setColChooserOpen] = useState(false);
+  const [colChooser, setColChooser] = useState(false);
+  const [filterPanel, setFilterPanel] = useState(false);
   const [inspected, setInspected] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
-    setVisibleCols(allFields);
-    setColFilters({});
+    setVisibleCols(defaultCols);
     setSearch("");
-    setSortKey(null);
+    setFilters({});
+    setSortCol(dateCol);
+    setSortDir("desc");
     setPage(0);
-  }, [allFields, dataset.id]);
+  }, [dataset.id, defaultCols, dateCol]);
 
-  const sampled = useMemo(
-    () => sampleRows(rows, sampleMode, sampleSize, seed),
-    [rows, sampleMode, sampleSize, seed],
-  );
-
-  const filtered = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    let out = sampled;
+  // Build WHERE clause
+  const whereSql = useMemo(() => {
+    const parts: string[] = [];
+    const s = search.trim();
     if (s) {
-      out = out.filter((r) =>
-        Object.values(r).some((v) => v != null && String(v).toLowerCase().includes(s)),
-      );
+      const like = sqlString(`%${s}%`);
+      const expr = columns
+        .map((c) => `CAST(${quoteIdent(c.name)} AS VARCHAR) ILIKE ${like}`)
+        .join(" OR ");
+      if (expr) parts.push(`(${expr})`);
     }
-    for (const [k, v] of Object.entries(colFilters)) {
+    for (const [col, val] of Object.entries(filters)) {
+      const v = val.trim();
       if (!v) continue;
-      const vl = v.toLowerCase();
-      out = out.filter((r) => String(r[k] ?? "").toLowerCase().includes(vl));
+      parts.push(`CAST(${quoteIdent(col)} AS VARCHAR) ILIKE ${sqlString(`%${v}%`)}`);
     }
-    if (sortKey) {
-      out = [...out].sort((a, b) => {
-        const av = String(a[sortKey] ?? "");
-        const bv = String(b[sortKey] ?? "");
-        const cmp = av.localeCompare(bv, undefined, { numeric: true });
-        return sortDir === "asc" ? cmp : -cmp;
-      });
-    }
-    return out;
-  }, [sampled, search, colFilters, sortKey, sortDir]);
+    return parts.length ? `WHERE ${parts.join(" AND ")}` : "";
+  }, [search, filters, columns]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const orderSql = useMemo(() => {
+    if (!sortCol) return "";
+    return `ORDER BY ${quoteIdent(sortCol)} ${sortDir.toUpperCase()}`;
+  }, [sortCol, sortDir]);
+
+  // Build sample subquery (latest/earliest/first/random/full)
+  const baseQuery = useMemo(() => {
+    const tbl = state.table!;
+    if (sampleMode === "full") return `SELECT * FROM ${tbl}`;
+    if (sampleMode === "first") return `SELECT * FROM ${tbl} LIMIT ${sampleSize}`;
+    if (sampleMode === "latest" && dateCol)
+      return `SELECT * FROM ${tbl} ORDER BY ${quoteIdent(dateCol)} DESC NULLS LAST LIMIT ${sampleSize}`;
+    if (sampleMode === "earliest" && dateCol)
+      return `SELECT * FROM ${tbl} ORDER BY ${quoteIdent(dateCol)} ASC NULLS LAST LIMIT ${sampleSize}`;
+    if (sampleMode === "random")
+      return `SELECT * FROM (SELECT *, hash(rowid::VARCHAR || '${seed}') AS _h FROM ${tbl}) ORDER BY _h LIMIT ${sampleSize}`;
+    return `SELECT * FROM ${tbl} LIMIT ${sampleSize}`;
+  }, [state.table, sampleMode, sampleSize, seed, dateCol]);
+
+  // Filtered count + paginated rows
+  const [totalFiltered, setTotalFiltered] = useState<number>(0);
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setRunning(true);
+      try {
+        const sample = `(${baseQuery}) AS _sample`;
+        const countRows = await runSql<{ n: number }>(
+          `SELECT COUNT(*)::INT AS n FROM ${sample} ${whereSql}`,
+        );
+        const total = Number(countRows[0]?.n ?? 0);
+        const pageSql = `SELECT * FROM ${sample} ${whereSql} ${orderSql} LIMIT ${pageSize} OFFSET ${page * pageSize}`;
+        const data = await runSql(pageSql);
+        if (!cancelled) {
+          setTotalFiltered(total);
+          setRows(data);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setTotalFiltered(0);
+          setRows([]);
+          console.error(e);
+        }
+      } finally {
+        if (!cancelled) setRunning(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [baseQuery, whereSql, orderSql, pageSize, page]);
+
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
   const safePage = Math.min(page, totalPages - 1);
-  const slice = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize);
-
-  const toggleSort = (k: string) => {
-    if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortKey(k);
-      setSortDir("asc");
-    }
-  };
 
   return (
     <div className="space-y-3">
-      {/* Controls */}
-      <div className="surface-card p-3 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <div>
-            <label className="text-[10px] uppercase text-muted-foreground">Search all</label>
-            <Input
-              placeholder="Search any field…"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
-              className="bg-background text-foreground h-9"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] uppercase text-muted-foreground">Sample mode</label>
-            <select
-              value={sampleMode}
-              onChange={(e) => {
-                setSampleMode(e.target.value as SampleMode);
-                setPage(0);
-              }}
-              className="w-full h-9 bg-background text-foreground border border-input rounded-md px-2 text-sm"
-            >
-              <option value="full">Full dataset</option>
-              <option value="first">First records</option>
-              <option value="latest">Latest records</option>
-              <option value="earliest">Earliest records</option>
-              <option value="random">Random sample</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] uppercase text-muted-foreground">Sample size</label>
-            <select
-              value={sampleSize}
-              onChange={(e) => setSampleSize(Number(e.target.value))}
-              disabled={sampleMode === "full"}
-              className="w-full h-9 bg-background text-foreground border border-input rounded-md px-2 text-sm disabled:opacity-50"
-            >
-              {[10, 25, 50, 100, 250, 500].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] uppercase text-muted-foreground">Page size</label>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(0);
-              }}
-              className="w-full h-9 bg-background text-foreground border border-input rounded-md px-2 text-sm"
-            >
-              {[25, 50, 100, 250].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2 items-center">
-          {sampleMode === "random" && (
-            <Button size="sm" variant="outline" onClick={() => setSeed((s) => s + 1)}>
-              Generate new sample
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setSearch("");
-              setColFilters({});
-              setSortKey(null);
+      {/* Top controls */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[160px]">
+          <Search className="w-4 h-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Input
+            placeholder="Search all visible fields"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
               setPage(0);
             }}
-          >
-            Reset filters
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setColChooserOpen((o) => !o)}>
-            Columns ({visibleCols.length}/{allFields.length})
-          </Button>
-          <div className="text-xs text-muted-foreground ml-auto">
-            {filtered.length.toLocaleString()} rows after filter · {rows.length.toLocaleString()} total
-          </div>
+            className="pl-8 h-11 bg-background text-foreground"
+            aria-label="Search records"
+          />
         </div>
+        <Button
+          variant="outline"
+          className="min-h-[44px]"
+          onClick={() => setFilterPanel((o) => !o)}
+          aria-expanded={filterPanel}
+        >
+          <Filter className="w-4 h-4" /> Filters
+        </Button>
+        <Button variant="outline" className="min-h-[44px]" onClick={() => setColChooser((o) => !o)}>
+          Columns ({visibleCols.length}/{columns.length})
+        </Button>
+      </div>
 
-        {colChooserOpen && (
-          <div className="border border-white/10 rounded-md p-2 bg-white/[0.02] max-h-40 overflow-auto">
-            <div className="flex gap-2 mb-1">
-              <button
-                className="text-[11px] text-primary hover:underline"
-                onClick={() => setVisibleCols(allFields)}
-              >
-                All
-              </button>
-              <button
-                className="text-[11px] text-primary hover:underline"
-                onClick={() => setVisibleCols([])}
-              >
-                None
-              </button>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1">
-              {allFields.map((c) => (
-                <label key={c} className="flex items-center gap-1 text-[11px] text-foreground/80">
-                  <input
-                    type="checkbox"
-                    checked={visibleCols.includes(c)}
-                    onChange={(e) =>
-                      setVisibleCols((cols) =>
-                        e.target.checked ? [...cols, c] : cols.filter((x) => x !== c),
-                      )
-                    }
+      {/* Filter panel */}
+      {filterPanel && (
+        <div className="surface-card p-3 space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            <Select
+              label="Sample"
+              value={sampleMode}
+              onChange={(v) => {
+                setSampleMode(v as SampleMode);
+                setPage(0);
+              }}
+              options={[
+                ["latest", "Latest"],
+                ["earliest", "Earliest"],
+                ["first", "First records"],
+                ["random", "Random"],
+                ["full", "Full query"],
+              ]}
+            />
+            <Select
+              label="Sample size"
+              value={String(sampleSize)}
+              onChange={(v) => setSampleSize(Number(v))}
+              disabled={sampleMode === "full"}
+              options={[10, 25, 50, 100, 250, 500].map((n) => [String(n), String(n)])}
+            />
+            <Select
+              label="Page size"
+              value={String(pageSize)}
+              onChange={(v) => {
+                setPageSize(Number(v));
+                setPage(0);
+              }}
+              options={[10, 25, 50, 100, 250].map((n) => [String(n), String(n)])}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {sampleMode === "random" && (
+              <Button size="sm" variant="outline" className="min-h-[40px]" onClick={() => setSeed((s) => s + 1)}>
+                New random sample
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[40px]"
+              onClick={() => {
+                if (!dateCol) return;
+                setSortCol(dateCol);
+                setSortDir("desc");
+              }}
+              disabled={!dateCol}
+            >
+              Sort newest
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[40px]"
+              onClick={() => {
+                if (!dateCol) return;
+                setSortCol(dateCol);
+                setSortDir("asc");
+              }}
+              disabled={!dateCol}
+            >
+              Sort oldest
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[40px]"
+              onClick={() => {
+                setSearch("");
+                setFilters({});
+                setSortCol(dateCol);
+                setSortDir("desc");
+                setPage(0);
+              }}
+            >
+              Clear filters
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-[40px]"
+              onClick={() => setVisibleCols(defaultCols)}
+            >
+              Reset columns
+            </Button>
+          </div>
+
+          {/* Per-column filters */}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground py-1">Per-column filters</summary>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {visibleCols.map((c) => (
+                <label key={c} className="block">
+                  <span className="text-[10px] uppercase text-muted-foreground">{c}</span>
+                  <Input
+                    value={filters[c] ?? ""}
+                    onChange={(e) => {
+                      setFilters((f) => ({ ...f, [c]: e.target.value }));
+                      setPage(0);
+                    }}
+                    placeholder="contains…"
+                    className="h-9 bg-background text-foreground"
                   />
-                  {c}
                 </label>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Downloads */}
-        <div className="flex flex-wrap gap-2 pt-1 border-t border-white/5">
-          <Button size="sm" variant="outline" onClick={() => downloadOriginal(getSourceFor(dataset).url, dataset.filename)}>
-            <Download className="w-3 h-3" /> Source file
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => downloadText(`${dataset.id}_filtered.csv`, rowsToCsv(filtered), "text/csv")}
-          >
-            <Download className="w-3 h-3" /> Filtered CSV
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              downloadText(`${dataset.id}_filtered.json`, JSON.stringify(filtered, null, 2), "application/json")
-            }
-          >
-            <Download className="w-3 h-3" /> Filtered JSON
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => downloadText(`${dataset.id}_sample.csv`, rowsToCsv(sampled), "text/csv")}
-          >
-            <Download className="w-3 h-3" /> Sample CSV
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              downloadText(`${dataset.id}_sample.json`, JSON.stringify(sampled, null, 2), "application/json")
-            }
-          >
-            <Download className="w-3 h-3" /> Sample JSON
-          </Button>
+          </details>
         </div>
+      )}
+
+      {/* Column chooser */}
+      {colChooser && (
+        <div className="surface-card p-3 max-h-56 overflow-auto">
+          <div className="flex gap-2 mb-1 text-[11px]">
+            <button className="text-primary hover:underline" onClick={() => setVisibleCols(columns.map((c) => c.name))}>
+              All
+            </button>
+            <button className="text-primary hover:underline" onClick={() => setVisibleCols([])}>
+              None
+            </button>
+            <button className="text-primary hover:underline ml-auto" onClick={() => setVisibleCols(defaultCols)}>
+              Reset
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1">
+            {columns.map((c) => (
+              <label key={c.name} className="flex items-center gap-1 text-[12px] text-card-foreground min-h-[28px]">
+                <input
+                  type="checkbox"
+                  checked={visibleCols.includes(c.name)}
+                  onChange={(e) =>
+                    setVisibleCols((v) => (e.target.checked ? [...v, c.name] : v.filter((x) => x !== c.name)))
+                  }
+                />
+                {c.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Count line */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div aria-live="polite">
+          Showing {Math.min(rows.length, pageSize).toLocaleString()} of {totalFiltered.toLocaleString()} records
+          {running && <span className="ml-2">· querying…</span>}
+        </div>
+        {sampleMode !== "full" && totalFiltered < state.rowCount && (
+          <Button size="sm" variant="outline" className="min-h-[36px]" onClick={() => setSampleMode("full")}>
+            View more records
+          </Button>
+        )}
       </div>
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
-        {slice.map((r, i) => {
-          const rowNum = safePage * pageSize + i + 1;
-          return (
-            <button
-              key={i}
-              onClick={() => setInspected(r)}
-              className="surface-card p-3 w-full text-left"
-            >
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                <span>#{rowNum}</span>
-                <span>Tap for details</span>
-              </div>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[12px]">
-                {visibleCols.slice(0, 6).map((c) => (
-                  <div key={c} className="min-w-0">
-                    <div className="text-[10px] uppercase text-muted-foreground">{c}</div>
-                    <div className="text-card-foreground truncate">{String(r[c] ?? "—")}</div>
-                  </div>
-                ))}
-              </div>
-            </button>
-          );
-        })}
-        {slice.length === 0 && (
-          <div className="text-center text-sm text-muted-foreground py-8">No records.</div>
+        {rows.map((r, i) => (
+          <RecordCard key={i} dataset={dataset} row={r} index={safePage * pageSize + i + 1} onTap={() => setInspected(r)} />
+        ))}
+        {!rows.length && !running && (
+          <div className="text-sm text-muted-foreground text-center py-8">No records.</div>
         )}
       </div>
 
@@ -474,58 +641,48 @@ function ExplorerTab({ dataset, rows }: { dataset: DatasetDef; rows: Record<stri
         <table className="text-xs min-w-full">
           <thead className="sticky top-0 bg-card z-10">
             <tr className="border-b border-black/10">
-              <th className="px-2 py-2 text-left font-medium text-card-foreground">#</th>
+              <th scope="col" className="px-2 py-2 text-left font-medium">#</th>
               {visibleCols.map((c) => (
                 <th
                   key={c}
-                  className="px-2 py-2 text-left font-medium text-card-foreground whitespace-nowrap cursor-pointer hover:text-primary"
-                  onClick={() => toggleSort(c)}
+                  scope="col"
+                  className="px-2 py-2 text-left font-medium whitespace-nowrap cursor-pointer hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                  onClick={() => {
+                    if (sortCol === c) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                    else {
+                      setSortCol(c);
+                      setSortDir("asc");
+                    }
+                  }}
+                  tabIndex={0}
                 >
-                  <div className="flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1">
                     {c}
-                    {sortKey === c && <span>{sortDir === "asc" ? "▲" : "▼"}</span>}
-                  </div>
-                </th>
-              ))}
-            </tr>
-            <tr className="border-b border-black/10 bg-muted/30">
-              <th></th>
-              {visibleCols.map((c) => (
-                <th key={c} className="px-1 py-1">
-                  <input
-                    value={colFilters[c] ?? ""}
-                    onChange={(e) => {
-                      setColFilters((f) => ({ ...f, [c]: e.target.value }));
-                      setPage(0);
-                    }}
-                    placeholder="filter…"
-                    className="w-full text-[11px] px-1 py-0.5 bg-background border border-input rounded"
-                  />
+                    {sortCol === c && <span aria-hidden>{sortDir === "asc" ? "▲" : "▼"}</span>}
+                  </span>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {slice.map((r, i) => (
+            {rows.map((r, i) => (
               <tr
                 key={i}
                 onClick={() => setInspected(r)}
                 className="border-t border-black/5 text-card-foreground hover:bg-muted/40 cursor-pointer"
               >
-                <td className="px-2 py-1 text-muted-foreground tabular-nums">
-                  {safePage * pageSize + i + 1}
-                </td>
+                <td className="px-2 py-1 text-muted-foreground tabular-nums">{safePage * pageSize + i + 1}</td>
                 {visibleCols.map((c) => (
                   <td key={c} className="px-2 py-1 whitespace-nowrap max-w-[260px] truncate" title={String(r[c] ?? "")}>
-                    {String(r[c] ?? "")}
+                    {fmtCell(r[c])}
                   </td>
                 ))}
               </tr>
             ))}
-            {slice.length === 0 && (
+            {!rows.length && !running && (
               <tr>
                 <td colSpan={visibleCols.length + 1} className="text-center py-6 text-muted-foreground">
-                  No records match.
+                  No records.
                 </td>
               </tr>
             )}
@@ -535,7 +692,13 @@ function ExplorerTab({ dataset, rows }: { dataset: DatasetDef; rows: Record<stri
 
       {/* Pagination */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <Button variant="outline" size="sm" disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-[40px]"
+          disabled={safePage === 0}
+          onClick={() => setPage((p) => Math.max(0, p - 1))}
+        >
           Prev
         </Button>
         <span>
@@ -544,6 +707,7 @@ function ExplorerTab({ dataset, rows }: { dataset: DatasetDef; rows: Record<stri
         <Button
           variant="outline"
           size="sm"
+          className="min-h-[40px]"
           disabled={safePage >= totalPages - 1}
           onClick={() => setPage((p) => p + 1)}
         >
@@ -551,75 +715,221 @@ function ExplorerTab({ dataset, rows }: { dataset: DatasetDef; rows: Record<stri
         </Button>
       </div>
 
-      {inspected && <RecordInspector record={inspected} onClose={() => setInspected(null)} />}
+      {inspected && <RecordInspector record={inspected} dataset={dataset} onClose={() => setInspected(null)} />}
     </div>
   );
 }
 
-/* ============================== INSPECTOR ============================== */
+function Select({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+  disabled?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="mt-0.5 w-full min-h-[44px] bg-background text-foreground border border-input rounded-md px-2 text-sm disabled:opacity-50"
+      >
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function fmtCell(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+function pickDefaultColumns(dataset: DatasetDef, all: string[]): string[] {
+  const prefer = {
+    games: ["date_utc", "status", "away_team", "away_score", "home_team", "home_score", "league", "season"],
+    standings: ["position", "team", "group", "played", "wins", "losses", "percentage", "form"],
+    live: ["date_utc", "status", "name", "home_team", "home_score", "away_team", "away_score"],
+    manifest: all,
+  } as const;
+  const want = prefer[dataset.dataset_type] ?? all;
+  const chosen = want.filter((w) => all.includes(w));
+  return chosen.length ? chosen : all.slice(0, Math.min(8, all.length));
+}
+
+/* ============================ RECORD CARD ============================ */
+
+function RecordCard({
+  dataset,
+  row,
+  index,
+  onTap,
+}: {
+  dataset: DatasetDef;
+  row: Record<string, unknown>;
+  index: number;
+  onTap: () => void;
+}) {
+  if (dataset.dataset_type === "games" || dataset.dataset_type === "live") {
+    return (
+      <button
+        onClick={onTap}
+        className="surface-card p-3 w-full text-left min-h-[88px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
+          <span>#{index} · {shortDate(String(row.date_utc ?? ""))}</span>
+          <span>{String(row.status ?? "")}</span>
+        </div>
+        <div className="grid grid-cols-[1fr_auto] gap-y-1 items-center text-card-foreground">
+          <div className="font-medium truncate">{String(row.away_team ?? row.name ?? "")}</div>
+          <div className="font-bold tabular-nums">{String(row.away_score ?? "")}</div>
+          <div className="font-medium truncate">{String(row.home_team ?? "")}</div>
+          <div className="font-bold tabular-nums">{String(row.home_score ?? "")}</div>
+        </div>
+        <div className="mt-1 text-[11px] text-muted-foreground truncate">
+          {String(row.league ?? "")} {row.season ? `· ${row.season}` : ""}
+        </div>
+      </button>
+    );
+  }
+  if (dataset.dataset_type === "standings") {
+    return (
+      <button
+        onClick={onTap}
+        className="surface-card p-3 w-full text-left min-h-[72px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bold tabular-nums text-card-foreground w-6 text-right">
+              {String(row.position ?? "")}
+            </span>
+            <span className="font-medium truncate text-card-foreground">{String(row.team ?? "")}</span>
+          </div>
+          <span className="chip bg-muted text-card-foreground">{String(row.group ?? "")}</span>
+        </div>
+        <div className="mt-2 grid grid-cols-5 gap-1 text-[11px] text-card-foreground">
+          <Mini label="GP" value={String(row.played ?? "")} />
+          <Mini label="W" value={String(row.wins ?? "")} />
+          <Mini label="L" value={String(row.losses ?? "")} />
+          <Mini label="Pct" value={String(row.percentage ?? "")} />
+          <Mini label="Form" value={String(row.form ?? "")} />
+        </div>
+      </button>
+    );
+  }
+  return (
+    <button onClick={onTap} className="surface-card p-3 w-full text-left">
+      <div className="text-[11px] text-muted-foreground">#{index}</div>
+      <div className="text-card-foreground">Tap to inspect</div>
+    </button>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="text-center">
+      <div className="text-[9px] uppercase text-muted-foreground">{label}</div>
+      <div className="tabular-nums">{value || "—"}</div>
+    </div>
+  );
+}
+
+/* ============================ INSPECTOR ============================ */
 
 function RecordInspector({
   record,
+  dataset,
   onClose,
 }: {
   record: Record<string, unknown>;
+  dataset: DatasetDef;
   onClose: () => void;
 }) {
   const [view, setView] = useState<"fields" | "json">("fields");
   const json = JSON.stringify(record, null, 2);
+
+  const copy = (text: string) => navigator.clipboard?.writeText(text).catch(() => {});
+  const downloadJson = () =>
+    downloadBlob(`${dataset.filename_base}_record.json`, new Blob([json], { type: "application/json" }));
+  const downloadCsvFn = () => {
+    const cols = Object.keys(record);
+    const header = cols.map(csvEscape).join(",");
+    const row = cols.map((c) => csvEscape(stringifyValue(record[c]))).join(",");
+    downloadBlob(`${dataset.filename_base}_record.csv`, new Blob([header + "\n" + row], { type: "text/csv" }));
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center md:justify-center">
-      <div className="bg-card text-card-foreground w-full md:max-w-2xl max-h-[85vh] rounded-t-2xl md:rounded-2xl overflow-hidden flex flex-col">
+    <div role="dialog" aria-modal="true" aria-label="Record details" className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end md:items-center md:justify-end">
+      <div className="bg-card text-card-foreground w-full md:max-w-md md:h-full max-h-[85vh] md:max-h-full rounded-t-2xl md:rounded-none overflow-hidden flex flex-col shadow-xl">
         <div className="flex items-center justify-between p-3 border-b border-black/10">
           <div className="font-semibold">Record details</div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-muted">
+          <button onClick={onClose} className="p-2 rounded hover:bg-muted min-h-[44px] min-w-[44px]" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="flex gap-1 p-2 border-b border-black/5">
+        <div className="flex gap-1 p-2 border-b border-black/5 flex-wrap">
           <button
             onClick={() => setView("fields")}
-            className={`px-2 py-1 text-xs rounded ${view === "fields" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+            className={`px-3 py-1.5 text-xs rounded min-h-[36px] ${view === "fields" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           >
             Fields
           </button>
           <button
             onClick={() => setView("json")}
-            className={`px-2 py-1 text-xs rounded ${view === "json" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+            className={`px-3 py-1.5 text-xs rounded min-h-[36px] ${view === "json" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
           >
             Pretty JSON
           </button>
-          <button
-            onClick={() => copyToClipboard(json)}
-            className="ml-auto px-2 py-1 text-xs rounded bg-muted inline-flex items-center gap-1"
-          >
-            <Copy className="w-3 h-3" /> Copy record JSON
+          <button onClick={() => copy(json)} className="ml-auto px-3 py-1.5 text-xs rounded bg-muted min-h-[36px] inline-flex items-center gap-1">
+            <Copy className="w-3 h-3" /> Copy JSON
+          </button>
+          <button onClick={downloadJson} className="px-3 py-1.5 text-xs rounded bg-muted min-h-[36px] inline-flex items-center gap-1">
+            <Download className="w-3 h-3" /> JSON
+          </button>
+          <button onClick={downloadCsvFn} className="px-3 py-1.5 text-xs rounded bg-muted min-h-[36px] inline-flex items-center gap-1">
+            <Download className="w-3 h-3" /> CSV
           </button>
         </div>
         <div className="overflow-auto p-3">
           {view === "fields" ? (
             <div className="space-y-2">
               {Object.entries(record).map(([k, v]) => {
+                const empty = v == null || (typeof v === "string" && v.trim() === "");
                 const type = inferType(v);
-                const empty = isEmpty(v);
-                const display = v == null ? "null" : String(v);
+                const display = stringifyValue(v);
                 return (
                   <div key={k} className="border border-black/5 rounded-md p-2">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                        {k}
-                      </div>
+                      <code className="text-[11px] uppercase tracking-wider text-muted-foreground">{k}</code>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted">{type}</span>
                         {empty && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600">
-                            empty
+                            missing
                           </span>
                         )}
-                        <button
-                          onClick={() => copyToClipboard(display)}
-                          className="text-[10px] inline-flex items-center gap-1 text-primary hover:underline"
-                        >
+                        <button onClick={() => copy(display)} className="text-[10px] inline-flex items-center gap-1 text-primary min-h-[28px] px-1">
                           <Copy className="w-3 h-3" /> Copy
                         </button>
                       </div>
@@ -638,247 +948,729 @@ function RecordInspector({
   );
 }
 
-/* ============================== SCHEMA ============================== */
+function inferType(v: unknown): string {
+  if (v == null) return "null";
+  if (typeof v === "boolean") return "boolean";
+  if (typeof v === "number") return Number.isInteger(v) ? "integer" : "number";
+  if (typeof v === "object") return Array.isArray(v) ? "array" : "object";
+  const s = String(v).trim();
+  if (s === "") return "empty";
+  if (/^-?\d+$/.test(s)) return "integer";
+  if (/^-?\d+\.\d+$/.test(s)) return "number";
+  if (/^\d{4}-\d{2}-\d{2}/.test(s) && !isNaN(new Date(s).getTime())) return "date";
+  return "string";
+}
+function stringifyValue(v: unknown): string {
+  if (v == null) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
 
-function SchemaTab({ rows, dataset }: { rows: Record<string, unknown>[]; dataset: DatasetDef }) {
-  const profile = useMemo(() => profileRows(rows), [rows]);
+/* ============================ SCHEMA ============================ */
 
-  const csv = useMemo(() => {
-    const head = "field,type,non_empty,missing,missing_pct,unique,min,max,avg,median,earliest,latest,example";
-    const lines = profile.map((p) =>
-      [
-        p.field,
-        p.type,
-        p.nonEmpty,
-        p.missing,
-        p.missingPct.toFixed(2),
-        p.unique,
-        p.min ?? "",
-        p.max ?? "",
-        p.avg?.toFixed(3) ?? "",
-        p.median ?? "",
-        p.earliest ?? "",
-        p.latest ?? "",
-        JSON.stringify(p.example),
-      ].join(","),
-    );
-    return [head, ...lines].join("\n");
-  }, [profile]);
+interface FieldStat {
+  field: string;
+  type: string;
+  nonEmpty: number;
+  missing: number;
+  missingPct: number;
+  unique: number;
+  example: string;
+  min?: string;
+  max?: string;
+  avg?: number;
+  median?: number;
+  top?: { value: string; count: number; pct: number }[];
+}
+
+const schemaCache = new Map<string, FieldStat[]>();
+
+function SchemaTab({ dataset, state }: { dataset: DatasetDef; state: DatasetState }) {
+  const [stats, setStats] = useState<FieldStat[] | null>(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const key = `${dataset.id}:${state.loadedAt}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const cached = schemaCache.get(key);
+      if (cached) {
+        setStats(cached);
+        return;
+      }
+      setRunning(true);
+      setError(null);
+      try {
+        const out = await profileColumns(state.table!, state.columns, state.rowCount);
+        if (!cancelled) {
+          schemaCache.set(key, out);
+          setStats(out);
+        }
+      } catch (e) {
+        if (!cancelled) setError((e as Error).message);
+      } finally {
+        if (!cancelled) setRunning(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [key, state.table, state.columns, state.rowCount]);
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button size="sm" variant="outline" onClick={() => downloadText(`${dataset.id}_schema.csv`, csv, "text/csv")}>
+      <div className="flex justify-between items-center">
+        <p className="text-xs text-muted-foreground">
+          Profiling runs only when you open this tab; results are cached per dataset.
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="min-h-[40px]"
+          disabled={!stats}
+          onClick={() => {
+            if (!stats) return;
+            const csv = schemaToCsv(stats);
+            downloadBlob(`${dataset.filename_base}_schema.csv`, new Blob([csv], { type: "text/csv" }));
+          }}
+        >
           <Download className="w-3 h-3" /> Schema CSV
         </Button>
       </div>
+      {running && <SkeletonRows />}
+      {error && <div className="surface-card p-3 text-red-400 text-sm">{error}</div>}
       <div className="space-y-2">
-        {profile.map((p) => (
-          <FieldProfileCard key={p.field} p={p} />
+        {stats?.map((s) => (
+          <div key={s.field} className="surface-card p-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="font-semibold text-card-foreground">{s.field}</div>
+              <span className="chip bg-primary/10 text-primary border border-primary/20">{s.type}</span>
+            </div>
+            <dl className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <Stat label="Non-empty" value={s.nonEmpty.toLocaleString()} />
+              <Stat label="Missing" value={`${s.missing.toLocaleString()} (${s.missingPct.toFixed(1)}%)`} />
+              <Stat label="Unique" value={s.unique.toLocaleString()} />
+              <Stat label="Example" value={s.example || "—"} />
+              {s.avg != null && <Stat label="Min" value={String(s.min ?? "—")} />}
+              {s.avg != null && <Stat label="Max" value={String(s.max ?? "—")} />}
+              {s.avg != null && <Stat label="Avg" value={s.avg.toFixed(2)} />}
+              {s.median != null && <Stat label="Median" value={String(s.median)} />}
+              {s.top == null && s.avg == null && s.min && <Stat label="Earliest" value={String(s.min)} />}
+              {s.top == null && s.avg == null && s.max && <Stat label="Latest" value={String(s.max)} />}
+            </dl>
+            {s.top && s.top.length > 0 && (
+              <div className="mt-2">
+                <div className="text-[10px] uppercase text-muted-foreground mb-1">Top values</div>
+                <div className="flex flex-wrap gap-1">
+                  {s.top.map((t) => (
+                    <span key={t.value} className="chip bg-muted text-card-foreground">
+                      {t.value} · {t.count.toLocaleString()} ({t.pct.toFixed(1)}%)
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         ))}
-        {!profile.length && (
-          <div className="text-sm text-muted-foreground text-center py-6">No data loaded.</div>
-        )}
       </div>
     </div>
   );
 }
 
-function FieldProfileCard({ p }: { p: FieldProfile }) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="surface-card p-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="font-semibold text-card-foreground">{p.field}</div>
-        <span className="chip bg-primary/10 text-primary border border-primary/20">{p.type}</span>
+    <div>
+      <dt className="text-[10px] uppercase text-muted-foreground">{label}</dt>
+      <dd className="text-card-foreground truncate" title={value}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+async function profileColumns(table: string, columns: { name: string; type: string }[], total: number) {
+  const out: FieldStat[] = [];
+  for (const c of columns) {
+    const col = quoteIdent(c.name);
+    try {
+      const numeric = /INT|DECIMAL|DOUBLE|FLOAT|REAL|NUMERIC|BIGINT|SMALL/i.test(c.type);
+      const dateLike = /DATE|TIMESTAMP/i.test(c.type) || /^date_utc$|date/i.test(c.name);
+
+      const r = await runSql<{ nonempty: number; uniq: number; example: string | null }>(
+        `SELECT
+           COUNT(${col})::INT AS nonempty,
+           COUNT(DISTINCT ${col})::INT AS uniq,
+           ANY_VALUE(CAST(${col} AS VARCHAR)) AS example
+         FROM ${table}
+         WHERE ${col} IS NOT NULL AND CAST(${col} AS VARCHAR) <> ''`,
+      );
+      const nonEmpty = Number(r[0]?.nonempty ?? 0);
+      const missing = total - nonEmpty;
+      const stat: FieldStat = {
+        field: c.name,
+        type: c.type,
+        nonEmpty,
+        missing,
+        missingPct: total ? (missing / total) * 100 : 0,
+        unique: Number(r[0]?.uniq ?? 0),
+        example: r[0]?.example ?? "",
+      };
+
+      if (numeric) {
+        const n = await runSql<{ mn: number; mx: number; av: number; md: number }>(
+          `SELECT MIN(${col})::DOUBLE AS mn, MAX(${col})::DOUBLE AS mx, AVG(${col})::DOUBLE AS av, MEDIAN(${col})::DOUBLE AS md FROM ${table}`,
+        );
+        stat.min = String(n[0]?.mn ?? "");
+        stat.max = String(n[0]?.mx ?? "");
+        stat.avg = Number(n[0]?.av ?? 0);
+        stat.median = Number(n[0]?.md ?? 0);
+      } else if (dateLike) {
+        const d = await runSql<{ mn: string; mx: string }>(
+          `SELECT MIN(${col})::VARCHAR AS mn, MAX(${col})::VARCHAR AS mx FROM ${table}`,
+        );
+        stat.min = d[0]?.mn ?? "";
+        stat.max = d[0]?.mx ?? "";
+      } else {
+        const top = await runSql<{ v: string; n: number }>(
+          `SELECT CAST(${col} AS VARCHAR) AS v, COUNT(*)::INT AS n FROM ${table}
+           WHERE ${col} IS NOT NULL AND CAST(${col} AS VARCHAR) <> ''
+           GROUP BY v ORDER BY n DESC LIMIT 5`,
+        );
+        stat.top = top.map((t) => ({
+          value: t.v,
+          count: Number(t.n),
+          pct: total ? (Number(t.n) / total) * 100 : 0,
+        }));
+      }
+      out.push(stat);
+    } catch {
+      out.push({
+        field: c.name,
+        type: c.type,
+        nonEmpty: 0,
+        missing: total,
+        missingPct: 100,
+        unique: 0,
+        example: "",
+      });
+    }
+  }
+  return out;
+}
+
+function schemaToCsv(stats: FieldStat[]): string {
+  const head = "field,type,non_empty,missing,missing_pct,unique,min,max,avg,median,example";
+  const lines = stats.map((s) =>
+    [
+      s.field,
+      s.type,
+      s.nonEmpty,
+      s.missing,
+      s.missingPct.toFixed(2),
+      s.unique,
+      s.min ?? "",
+      s.max ?? "",
+      s.avg ?? "",
+      s.median ?? "",
+      s.example ?? "",
+    ]
+      .map((v) => csvEscape(String(v)))
+      .join(","),
+  );
+  return [head, ...lines].join("\n");
+}
+
+/* ============================ QUALITY ============================ */
+
+interface QualityResult {
+  totalRows: number;
+  uniqueTeams: number;
+  dateRange: { earliest: string | null; latest: string | null };
+  completed: number;
+  scheduled: number;
+  live: number;
+  missingTeamNames: number;
+  missingDates: number;
+  missingScores: number;
+  invalidScores: number;
+  invalidTimestamps: number;
+  emptySeasons: number;
+  duplicateGameIds: number;
+  duplicateRows: number;
+  statusDist: { status: string; count: number }[];
+  seasons: string[];
+}
+
+const qualityCache = new Map<string, QualityResult>();
+
+function QualityTab({ dataset, state }: { dataset: DatasetDef; state: DatasetState }) {
+  const [q, setQ] = useState<QualityResult | null>(null);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const key = `${dataset.id}:${state.loadedAt}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const cached = qualityCache.get(key);
+      if (cached) {
+        setQ(cached);
+        return;
+      }
+      setRunning(true);
+      setError(null);
+      try {
+        const r = await computeQuality(state.table!, state.columns, state.rowCount);
+        if (!cancelled) {
+          qualityCache.set(key, r);
+          setQ(r);
+        }
+      } catch (e) {
+        if (!cancelled) setError((e as Error).message);
+      } finally {
+        if (!cancelled) setRunning(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [key, state.table, state.columns, state.rowCount]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          className="min-h-[40px]"
+          disabled={!q}
+          onClick={() => {
+            if (!q) return;
+            const csv = qualityToCsv(q);
+            downloadBlob(`${dataset.filename_base}_quality_report.csv`, new Blob([csv], { type: "text/csv" }));
+          }}
+        >
+          <Download className="w-3 h-3" /> Quality CSV
+        </Button>
       </div>
-      <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-        <Info label="Non-empty" value={p.nonEmpty.toLocaleString()} />
-        <Info label="Missing" value={`${p.missing.toLocaleString()} (${p.missingPct.toFixed(1)}%)`} />
-        <Info label="Unique" value={p.unique.toLocaleString()} />
-        <Info label="Example" value={p.example || "—"} />
-        {(p.type === "integer" || p.type === "number") && (
-          <>
-            <Info label="Min" value={String(p.min ?? "—")} />
-            <Info label="Max" value={String(p.max ?? "—")} />
-            <Info label="Avg" value={p.avg != null ? p.avg.toFixed(2) : "—"} />
-            <Info label="Median" value={p.median != null ? String(p.median) : "—"} />
-          </>
-        )}
-        {p.type === "date" && (
-          <>
-            <Info label="Earliest" value={p.earliest ? new Date(p.earliest).toLocaleDateString() : "—"} />
-            <Info label="Latest" value={p.latest ? new Date(p.latest).toLocaleDateString() : "—"} />
-          </>
-        )}
-      </div>
-      {p.top && p.top.length > 0 && (
-        <div className="mt-2">
-          <div className="text-[10px] uppercase text-muted-foreground mb-1">Top values</div>
-          <div className="flex flex-wrap gap-1">
-            {p.top.map((t) => (
-              <span key={t.value} className="chip bg-muted text-card-foreground">
-                {t.value} · {t.count}
-              </span>
-            ))}
+      {running && <SkeletonRows />}
+      {error && <div className="surface-card p-3 text-red-400 text-sm">{error}</div>}
+      {q && (
+        <>
+          <div className="surface-card p-3">
+            <h3 className="text-sm font-semibold mb-2 text-card-foreground">Summary</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <Stat label="Total records" value={q.totalRows.toLocaleString()} />
+              <Stat label="Unique teams" value={q.uniqueTeams.toLocaleString()} />
+              <Stat
+                label="Date range"
+                value={
+                  q.dateRange.earliest
+                    ? `${shortDate(q.dateRange.earliest)} → ${shortDate(q.dateRange.latest)}`
+                    : "—"
+                }
+              />
+              <Stat label="Seasons" value={q.seasons.join(", ") || "—"} />
+              <Stat label="Completed" value={q.completed.toLocaleString()} />
+              <Stat label="Scheduled" value={q.scheduled.toLocaleString()} />
+              <Stat label="Live" value={q.live.toLocaleString()} />
+              <Stat label="Possible duplicates" value={(q.duplicateGameIds + q.duplicateRows).toLocaleString()} />
+            </div>
           </div>
-        </div>
+          <div className="surface-card p-3">
+            <h3 className="text-sm font-semibold mb-2 text-card-foreground">Checks</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <QCheck label="Duplicate game IDs" value={q.duplicateGameIds} />
+              <QCheck label="Duplicate rows" value={q.duplicateRows} />
+              <QCheck label="Missing team names" value={q.missingTeamNames} />
+              <QCheck label="Missing dates" value={q.missingDates} />
+              <QCheck label="Missing scores" value={q.missingScores} />
+              <QCheck label="Invalid scores" value={q.invalidScores} />
+              <QCheck label="Invalid timestamps" value={q.invalidTimestamps} />
+              <QCheck label="Empty seasons" value={q.emptySeasons} />
+            </div>
+          </div>
+          <div className="surface-card p-3">
+            <h3 className="text-sm font-semibold mb-2 text-card-foreground">Status distribution</h3>
+            <div className="flex flex-wrap gap-1">
+              {q.statusDist.map((s) => (
+                <span key={s.status} className="chip bg-muted text-card-foreground">
+                  {s.status || "(blank)"} · {s.count.toLocaleString()}
+                </span>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-/* ============================== QUALITY ============================== */
-
-function QualityTab({ rows, dataset }: { rows: Record<string, unknown>[]; dataset: DatasetDef }) {
-  const q = useMemo(() => qualityReport(rows), [rows]);
+function QCheck({ label, value }: { label: string; value: number }) {
+  const warn = value > 0;
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => downloadText(`${dataset.id}_quality.json`, JSON.stringify(q, null, 2), "application/json")}
-        >
-          <Download className="w-3 h-3" /> Quality JSON
-        </Button>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <Stat label="Total rows" value={q.totalRows} />
-        <Stat label="Duplicate game IDs" value={q.duplicateGameIds} warn={q.duplicateGameIds > 0} />
-        <Stat label="Missing team names" value={q.missingTeamNames} warn={q.missingTeamNames > 0} />
-        <Stat label="Missing dates" value={q.missingDates} warn={q.missingDates > 0} />
-        <Stat label="Missing scores" value={q.missingScores} />
-        <Stat label="Invalid numeric" value={q.invalidNumeric} warn={q.invalidNumeric > 0} />
-        <Stat label="Invalid timestamps" value={q.invalidTimestamps} warn={q.invalidTimestamps > 0} />
-        <Stat label="Unique teams" value={q.uniqueTeams} />
-        <Stat label="Completed" value={q.completed} />
-        <Stat label="Scheduled" value={q.scheduled} />
-        <Stat label="Live" value={q.live} />
-        <Stat label="Seasons" value={q.seasons.join(", ") || "—"} />
-      </div>
-      <div className="surface-card p-3">
-        <div className="text-[11px] uppercase text-muted-foreground mb-1">Date range</div>
-        <div className="text-sm">
-          {q.dateRange.earliest
-            ? `${new Date(q.dateRange.earliest).toLocaleDateString()} → ${new Date(q.dateRange.latest!).toLocaleDateString()}`
-            : "—"}
-        </div>
-      </div>
-      <div className="surface-card p-3">
-        <div className="text-[11px] uppercase text-muted-foreground mb-2">Status distribution</div>
-        <div className="flex flex-wrap gap-1">
-          {q.statusDistribution.map((s) => (
-            <span key={s.status} className="chip bg-muted text-card-foreground">
-              {s.status || "(blank)"} · {s.count}
-            </span>
-          ))}
-        </div>
+    <div className={`p-2 rounded border ${warn ? "border-amber-500/40 bg-amber-500/5" : "border-white/5"}`}>
+      <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
+      <div className={`text-base font-semibold ${warn ? "text-amber-500" : "text-card-foreground"}`}>
+        {value.toLocaleString()}
       </div>
     </div>
   );
 }
 
-function Stat({ label, value, warn }: { label: string; value: number | string; warn?: boolean }) {
-  return (
-    <div className={`surface-card p-3 ${warn ? "ring-1 ring-amber-500/40" : ""}`}>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`text-lg font-semibold ${warn ? "text-amber-500" : "text-card-foreground"}`}>
-        {typeof value === "number" ? value.toLocaleString() : value}
-      </div>
-    </div>
-  );
-}
+async function computeQuality(table: string, columns: { name: string }[], total: number): Promise<QualityResult> {
+  const has = (n: string) => columns.some((c) => c.name === n);
+  const colSql = (n: string, fallback = "NULL") => (has(n) ? quoteIdent(n) : fallback);
 
-/* ============================== JSON ============================== */
+  const out: QualityResult = {
+    totalRows: total,
+    uniqueTeams: 0,
+    dateRange: { earliest: null, latest: null },
+    completed: 0,
+    scheduled: 0,
+    live: 0,
+    missingTeamNames: 0,
+    missingDates: 0,
+    missingScores: 0,
+    invalidScores: 0,
+    invalidTimestamps: 0,
+    emptySeasons: 0,
+    duplicateGameIds: 0,
+    duplicateRows: 0,
+    statusDist: [],
+    seasons: [],
+  };
 
-function JsonTab({
-  data,
-  dataset,
-  sourceUrl,
-}: {
-  data: unknown;
-  dataset: DatasetDef;
-  sourceUrl: string;
-}) {
-  if (data == null) {
-    return <div className="surface-card p-4 text-sm text-muted-foreground">No JSON data loaded.</div>;
+  // Unique teams
+  if (has("home_team") || has("away_team") || has("team")) {
+    if (has("home_team") && has("away_team")) {
+      const r = await runSql<{ n: number }>(
+        `SELECT COUNT(DISTINCT t)::INT AS n FROM (SELECT ${quoteIdent("home_team")} t FROM ${table} UNION ALL SELECT ${quoteIdent("away_team")} FROM ${table}) WHERE t IS NOT NULL AND t <> ''`,
+      );
+      out.uniqueTeams = Number(r[0]?.n ?? 0);
+    } else if (has("team")) {
+      const r = await runSql<{ n: number }>(
+        `SELECT COUNT(DISTINCT ${quoteIdent("team")})::INT AS n FROM ${table} WHERE team IS NOT NULL`,
+      );
+      out.uniqueTeams = Number(r[0]?.n ?? 0);
+    }
   }
+
+  if (has("date_utc")) {
+    const r = await runSql<{ mn: string; mx: string; inv: number; mis: number }>(
+      `SELECT MIN(${quoteIdent("date_utc")})::VARCHAR AS mn, MAX(${quoteIdent("date_utc")})::VARCHAR AS mx,
+              SUM(CASE WHEN ${quoteIdent("date_utc")} IS NOT NULL AND TRY_CAST(${quoteIdent("date_utc")} AS TIMESTAMP) IS NULL THEN 1 ELSE 0 END)::INT AS inv,
+              SUM(CASE WHEN ${quoteIdent("date_utc")} IS NULL OR CAST(${quoteIdent("date_utc")} AS VARCHAR) = '' THEN 1 ELSE 0 END)::INT AS mis
+       FROM ${table}`,
+    );
+    out.dateRange = { earliest: r[0]?.mn ?? null, latest: r[0]?.mx ?? null };
+    out.invalidTimestamps = Number(r[0]?.inv ?? 0);
+    out.missingDates = Number(r[0]?.mis ?? 0);
+  }
+
+  if (has("status")) {
+    const dist = await runSql<{ s: string; n: number }>(
+      `SELECT COALESCE(CAST(${quoteIdent("status")} AS VARCHAR), '') AS s, COUNT(*)::INT AS n FROM ${table} GROUP BY s ORDER BY n DESC`,
+    );
+    out.statusDist = dist.map((d) => ({ status: d.s, count: Number(d.n) }));
+    for (const d of out.statusDist) {
+      const s = (d.status || "").toLowerCase();
+      if (/final|complete|ft\b/.test(s)) out.completed += d.count;
+      else if (/sched|upcoming|^ns$/.test(s)) out.scheduled += d.count;
+      else if (/live|progress|inning|^q\d/.test(s)) out.live += d.count;
+    }
+  }
+
+  if (has("home_team") || has("away_team")) {
+    const r = await runSql<{ n: number }>(
+      `SELECT SUM(CASE WHEN ${colSql("home_team", "''")} IS NULL OR ${colSql("home_team", "''")} = '' OR ${colSql("away_team", "''")} IS NULL OR ${colSql("away_team", "''")} = '' THEN 1 ELSE 0 END)::INT AS n FROM ${table}`,
+    );
+    out.missingTeamNames = Number(r[0]?.n ?? 0);
+  }
+
+  if (has("home_score") || has("away_score")) {
+    const r = await runSql<{ mis: number; inv: number }>(
+      `SELECT
+        SUM(CASE WHEN ${colSql("home_score", "''")} IS NULL OR CAST(${colSql("home_score", "''")} AS VARCHAR) = '' OR ${colSql("away_score", "''")} IS NULL OR CAST(${colSql("away_score", "''")} AS VARCHAR) = '' THEN 1 ELSE 0 END)::INT AS mis,
+        SUM(CASE WHEN CAST(${colSql("home_score", "''")} AS VARCHAR) <> '' AND TRY_CAST(${colSql("home_score", "''")} AS DOUBLE) IS NULL THEN 1 ELSE 0 END)::INT AS inv
+       FROM ${table}`,
+    );
+    out.missingScores = Number(r[0]?.mis ?? 0);
+    out.invalidScores = Number(r[0]?.inv ?? 0);
+  }
+
+  if (has("season")) {
+    const r = await runSql<{ s: string }>(
+      `SELECT DISTINCT CAST(${quoteIdent("season")} AS VARCHAR) AS s FROM ${table} WHERE season IS NOT NULL AND CAST(${quoteIdent("season")} AS VARCHAR) <> '' ORDER BY s`,
+    );
+    out.seasons = r.map((x) => x.s);
+    const e = await runSql<{ n: number }>(
+      `SELECT SUM(CASE WHEN season IS NULL OR CAST(${quoteIdent("season")} AS VARCHAR) = '' THEN 1 ELSE 0 END)::INT AS n FROM ${table}`,
+    );
+    out.emptySeasons = Number(e[0]?.n ?? 0);
+  }
+
+  if (has("game_id")) {
+    const r = await runSql<{ n: number }>(
+      `SELECT COUNT(*)::INT AS n FROM (SELECT ${quoteIdent("game_id")}, COUNT(*) c FROM ${table} GROUP BY 1 HAVING c > 1)`,
+    );
+    out.duplicateGameIds = Number(r[0]?.n ?? 0);
+  }
+
+  return out;
+}
+
+function qualityToCsv(q: QualityResult): string {
+  const rows: [string, string | number][] = [
+    ["total_rows", q.totalRows],
+    ["unique_teams", q.uniqueTeams],
+    ["earliest_date", q.dateRange.earliest ?? ""],
+    ["latest_date", q.dateRange.latest ?? ""],
+    ["completed", q.completed],
+    ["scheduled", q.scheduled],
+    ["live", q.live],
+    ["missing_team_names", q.missingTeamNames],
+    ["missing_dates", q.missingDates],
+    ["missing_scores", q.missingScores],
+    ["invalid_scores", q.invalidScores],
+    ["invalid_timestamps", q.invalidTimestamps],
+    ["empty_seasons", q.emptySeasons],
+    ["duplicate_game_ids", q.duplicateGameIds],
+    ["duplicate_rows", q.duplicateRows],
+    ["seasons", q.seasons.join("|")],
+  ];
+  const head = "metric,value";
+  const body = rows.map(([k, v]) => `${csvEscape(k)},${csvEscape(String(v))}`).join("\n");
+  const dist = "\n\nstatus,count\n" + q.statusDist.map((s) => `${csvEscape(s.status)},${s.count}`).join("\n");
+  return head + "\n" + body + dist;
+}
+
+/* ============================ DOWNLOADS ============================ */
+
+function DownloadsTab({ dataset, state }: { dataset: DatasetDef; state: DatasetState }) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const filenameDate = new Date().toISOString().slice(0, 10);
+  const fullName = `${dataset.filename_base}${dataset.season ? `_${dataset.season}` : ""}`;
+
+  const downloadQuery = async (sql: string, filename: string, mime: string) => {
+    setBusy(filename);
+    try {
+      const buf = await exportCsv(sql);
+      downloadBlob(filename, new Blob([buf], { type: mime }));
+    } catch (e) {
+      alert(`Failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const downloadJsonQuery = async (sql: string, filename: string) => {
+    setBusy(filename);
+    try {
+      const rows = await runSql(sql);
+      downloadBlob(filename, new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" }));
+    } catch (e) {
+      alert(`Failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const fullSelect = `SELECT * FROM ${state.table}`;
+  const sampleSelect = `SELECT * FROM ${state.table} LIMIT 100`;
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button size="sm" variant="outline" onClick={() => downloadOriginal(sourceUrl, dataset.filename)}>
-          <Download className="w-3 h-3" /> Source file
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() =>
-            downloadText(`${dataset.id}.json`, JSON.stringify(data, null, 2), "application/json")
-          }
-        >
-          <Download className="w-3 h-3" /> Parsed JSON
-        </Button>
+    <div className="space-y-4">
+      <div className="surface-card p-3 text-xs text-muted-foreground">
+        <strong className="text-card-foreground">About Parquet:</strong> Parquet is the primary
+        storage format because it uses less space and loads analytical data faster. CSV downloads
+        are available for Excel, Google Sheets, and general use.
       </div>
-      <JsonTree data={data} />
+
+      <section>
+        <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Primary downloads</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <DownloadCard
+            title="Original Parquet"
+            desc="Smallest file. Best for Python, R, DuckDB, and analytics tools."
+            icon={<Database className="w-4 h-4" />}
+            disabled={state.format !== "parquet"}
+            note={
+              state.format !== "parquet"
+                ? "Parquet not available yet — use the CSV version below."
+                : undefined
+            }
+            onClick={() => window.open(dataset.parquet_url, "_blank", "noopener")}
+            label="Open"
+          />
+          <DownloadCard
+            title="CSV version"
+            desc="Larger file that opens easily in Excel, Google Sheets, and most apps."
+            icon={<FileSpreadsheet className="w-4 h-4" />}
+            onClick={() => window.open(dataset.csv_fallback_url, "_blank", "noopener")}
+            label="Open"
+          />
+          <DownloadCard
+            title="Current filtered CSV"
+            desc="Generated from the current Explore query in your browser."
+            icon={<FileSpreadsheet className="w-4 h-4" />}
+            busy={busy === `${dataset.filename_base}_filtered_${filenameDate}.csv`}
+            onClick={() =>
+              downloadQuery(
+                fullSelect,
+                `${dataset.filename_base}_filtered_${filenameDate}.csv`,
+                "text/csv",
+              )
+            }
+            label="Generate"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Sample exports</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <DownloadCard
+            title="Sample CSV (100 rows)"
+            desc="Quick CSV sample of the current dataset."
+            icon={<FileSpreadsheet className="w-4 h-4" />}
+            busy={busy === `${dataset.filename_base}_sample_100.csv`}
+            onClick={() => downloadQuery(sampleSelect, `${dataset.filename_base}_sample_100.csv`, "text/csv")}
+            label="Generate"
+          />
+          <DownloadCard
+            title="Sample JSON (100 rows)"
+            desc="JSON sample for quick inspection."
+            icon={<FileJson className="w-4 h-4" />}
+            busy={busy === `${dataset.filename_base}_sample_100.json`}
+            onClick={() => downloadJsonQuery(sampleSelect, `${dataset.filename_base}_sample_100.json`)}
+            label="Generate"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Advanced</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <DownloadCard
+            title="Full results JSON"
+            desc={`All ${state.rowCount.toLocaleString()} rows as JSON (large for big datasets).`}
+            icon={<FileJson className="w-4 h-4" />}
+            busy={busy === `${fullName}_full.json`}
+            confirm={state.rowCount > 5000 ? `This will generate JSON for ${state.rowCount.toLocaleString()} rows. Continue?` : undefined}
+            onClick={() => downloadJsonQuery(fullSelect, `${fullName}_full.json`)}
+            label="Generate"
+          />
+          <DownloadCard
+            title="Schema report CSV"
+            desc="Field types, missing counts, examples."
+            icon={<FileSpreadsheet className="w-4 h-4" />}
+            onClick={() => alert("Open the Schema tab — the CSV download lives there.")}
+            label="Open Schema"
+          />
+          <DownloadCard
+            title="Quality report CSV"
+            desc="Duplicates, missing, status distribution."
+            icon={<FileSpreadsheet className="w-4 h-4" />}
+            onClick={() => alert("Open the Quality tab — the CSV download lives there.")}
+            label="Open Quality"
+          />
+        </div>
+      </section>
     </div>
   );
 }
 
-/* ============================== LINEAGE ============================== */
+function DownloadCard({
+  title,
+  desc,
+  icon,
+  onClick,
+  label,
+  busy,
+  disabled,
+  note,
+  confirm,
+}: {
+  title: string;
+  desc: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  label: string;
+  busy?: boolean;
+  disabled?: boolean;
+  note?: string;
+  confirm?: string;
+}) {
+  return (
+    <div className="surface-card p-3 flex flex-col gap-2">
+      <div className="flex items-start gap-2">
+        <div className="w-8 h-8 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <div className="font-medium text-card-foreground">{title}</div>
+          <div className="text-[12px] text-muted-foreground">{desc}</div>
+          {note && <div className="text-[11px] text-amber-500 mt-1">{note}</div>}
+        </div>
+      </div>
+      <Button
+        size="sm"
+        className="self-start min-h-[40px]"
+        disabled={disabled || busy}
+        onClick={() => {
+          if (confirm && !window.confirm(confirm)) return;
+          onClick();
+        }}
+      >
+        {busy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+        {busy ? "Working…" : label}
+      </Button>
+    </div>
+  );
+}
 
-function LineageTab({ dataset, rows }: { dataset: DatasetDef; rows: Record<string, unknown>[] }) {
-  const { results } = useData();
-  const r = results[dataset.sourceKey];
-  const source = getSourceFor(dataset);
+/* ============================ LINEAGE ============================ */
+
+function LineageTab({ dataset, state }: { dataset: DatasetDef; state: DatasetState }) {
   return (
     <div className="space-y-3">
       <div className="surface-card p-4">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Source lineage</div>
+        <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Source lineage</h3>
         <ol className="space-y-2 text-sm">
-          <Step n={1} title="Upstream sports API / scoreboard" desc="Public live and historical sports feeds (ESPN / API-Sports). Not reached from this site." />
-          <Step n={2} title="GitHub Actions" desc="Scheduled workflows in the LindaData repository fetch, normalize, and publish snapshots." />
-          <Step n={3} title="Public GitHub CSV / JSON" desc="Static files committed to the repo and served via raw.githubusercontent.com." />
-          <Step n={4} title="LindaData Sports Hub (this site)" desc="Static Vite app fetches files directly in the browser. No backend." />
+          <LStep n={1} title="Public API or scoreboard" desc="ESPN / API-Sports public endpoints." />
+          <LStep n={2} title="GitHub Actions" desc="Scheduled workflows in the LindaData repository fetch, normalise, and publish snapshots." />
+          <LStep n={3} title="Parquet + manifest files" desc="Committed to the repo and served via raw.githubusercontent.com." />
+          <LStep n={4} title="LindaData Sports Hub" desc="Static Vite app reads Parquet directly in your browser via DuckDB-WASM." />
+          <LStep n={5} title="Optional CSV download" desc="Generated client-side from query results." />
         </ol>
       </div>
 
-      <div className="surface-card p-4 space-y-2 text-sm">
+      <div className="surface-card p-4 text-sm space-y-2">
         <div className="grid grid-cols-2 gap-3">
-          <Info label="File type" value={dataset.kind.toUpperCase()} />
-          <Info label="Filename" value={dataset.filename} />
-          <Info label="Row count" value={r ? r.rows.toLocaleString() : "—"} />
-          <Info label="Origin" value={r?.origin ?? "—"} />
-          <Info label="Fallback used" value={r?.origin === "fallback" ? "Yes" : "No"} />
-          <Info label="Cache used" value={r?.origin === "cache" ? "Yes" : "No"} />
-          <Info label="Last refresh" value={r ? new Date(r.fetchedAt).toLocaleString() : "—"} />
-          <Info label="Loaded rows in memory" value={rows.length.toLocaleString()} />
+          <Stat label="Source repository" value="LindaData/world-cup-2026-betting-model" />
+          <Stat label="Schema version" value="v1" />
+          <Stat label="Format" value={state.format ?? "—"} />
+          <Stat label="Row count" value={state.rowCount.toLocaleString()} />
+          <Stat label="Generated (file)" value={state.generatedAt ? new Date(state.generatedAt).toLocaleString() : "—"} />
+          <Stat label="Downloaded" value={state.loadedAt ? new Date(state.loadedAt).toLocaleString() : "—"} />
         </div>
         <div className="pt-2 border-t border-white/5 space-y-1">
-          <a
-            href={r?.url ?? source.url}
-            target="_blank"
-            rel="noreferrer"
-            className="block text-[11px] text-primary break-all hover:underline"
-          >
-            Source URL: {r?.url ?? source.url}
+          <a href={dataset.parquet_url} target="_blank" rel="noreferrer" className="block text-[11px] text-primary break-all hover:underline">
+            Parquet URL: {dataset.parquet_url}
           </a>
-          {source.fallbackUrl && (
-            <a
-              href={source.fallbackUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="block text-[11px] text-primary break-all hover:underline"
-            >
-              Fallback URL: {source.fallbackUrl}
-            </a>
-          )}
+          <a href={dataset.csv_fallback_url} target="_blank" rel="noreferrer" className="block text-[11px] text-primary break-all hover:underline">
+            CSV fallback: {dataset.csv_fallback_url}
+          </a>
           <a
             href="https://github.com/LindaData/world-cup-2026-betting-model"
             target="_blank"
             rel="noreferrer"
             className="block text-[11px] text-primary hover:underline"
           >
-            Repository: LindaData/world-cup-2026-betting-model
+            Repository: github.com/LindaData/world-cup-2026-betting-model
           </a>
         </div>
       </div>
@@ -886,10 +1678,10 @@ function LineageTab({ dataset, rows }: { dataset: DatasetDef; rows: Record<strin
   );
 }
 
-function Step({ n, title, desc }: { n: number; title: string; desc: string }) {
+function LStep({ n, title, desc }: { n: number; title: string; desc: string }) {
   return (
     <li className="flex gap-3">
-      <div className="w-6 h-6 flex-shrink-0 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center">
+      <div className="w-7 h-7 flex-shrink-0 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center">
         {n}
       </div>
       <div>
@@ -898,4 +1690,21 @@ function Step({ n, title, desc }: { n: number; title: string; desc: string }) {
       </div>
     </li>
   );
+}
+
+/* ============================ helpers ============================ */
+
+function csvEscape(s: string): string {
+  if (s == null) return "";
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function downloadBlob(filename: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
