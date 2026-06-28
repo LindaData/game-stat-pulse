@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NBA from "./pages/NBA";
 import MLB from "./pages/MLB";
 import Status from "./pages/Status";
+import RawDataLab from "./pages/RawDataLab";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/nba" element={<NBA />} />
               <Route path="/mlb" element={<MLB />} />
+              <Route path="/raw" element={<RawDataLab />} />
               <Route path="/status" element={<Status />} />
               <Route path="*" element={<NotFound />} />
             </Route>

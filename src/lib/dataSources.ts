@@ -18,6 +18,8 @@ export const SOURCES: SourceDef[] = [
   { key: "live_manifest", label: "Live Manifest", kind: "json", url: `${BASE}/live_manifest.json` },
   { key: "nba_live", label: "NBA Live", kind: "json", url: `${BASE}/nba_live.json` },
   { key: "mlb_live", label: "MLB Live", kind: "json", url: `${BASE}/mlb_live.json` },
+  { key: "basketball_snapshot", label: "NBA Snapshot", kind: "json", url: `${BASE}/basketball_snapshot.json` },
+  { key: "baseball_snapshot", label: "MLB Snapshot", kind: "json", url: `${BASE}/baseball_snapshot.json` },
   {
     key: "basketball_games",
     label: "NBA Games (season)",
@@ -196,8 +198,23 @@ export async function loadSource(src: SourceDef): Promise<LoadResult> {
 }
 
 export async function loadAll(): Promise<Record<string, LoadResult>> {
-  const results = await Promise.all(SOURCES.map(loadSource));
+  const settled = await Promise.allSettled(SOURCES.map(loadSource));
   const map: Record<string, LoadResult> = {};
-  results.forEach((r) => (map[r.key] = r));
+  settled.forEach((s, i) => {
+    const src = SOURCES[i];
+    if (s.status === "fulfilled") {
+      map[s.value.key] = s.value;
+    } else {
+      map[src.key] = {
+        key: src.key,
+        data: null,
+        rows: 0,
+        origin: "empty",
+        fetchedAt: new Date().toISOString(),
+        url: src.url,
+        error: String(s.reason),
+      };
+    }
+  });
   return map;
 }
