@@ -35,8 +35,8 @@ jobs:
       - name: Build existing sports datasets
         run: python scripts/build_data_lake.py
 
-      - name: Fetch API-Football review samples
-        run: python scripts/fetch_api_football.py
+      - name: Fetch and validate API-Football review samples
+        run: python scripts/run_api_football_review.py
 
       - name: Profile datasets
         run: python scripts/profile_datasets.py
