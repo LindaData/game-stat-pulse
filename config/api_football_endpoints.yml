@@ -1,0 +1,90 @@
+defaults:
+  league_id: 39
+  team_id: 40
+  country: England
+  sample_row_limit: 25
+  request_delay_seconds: 0.25
+
+endpoints:
+  - id: football_countries
+    display_name: Football Countries
+    description: Countries represented in API-Football.
+    endpoint: countries
+    entity: operational_metadata
+    granularity: reference
+    params: {}
+
+  - id: football_leagues
+    display_name: Football Leagues
+    description: League metadata and coverage flags.
+    endpoint: leagues
+    entity: leagues
+    granularity: per_league
+    primary_key: league.id
+    params:
+      id: "{league_id}"
+
+  - id: football_teams
+    display_name: Football Teams
+    description: Teams participating in the selected league and season.
+    endpoint: teams
+    entity: teams
+    granularity: per_team
+    primary_key: team.id
+    params:
+      league: "{league_id}"
+      season: "{season}"
+
+  - id: football_team_statistics
+    display_name: Football Team Statistics
+    description: Aggregate team performance for the selected league and season.
+    endpoint: teams/statistics
+    entity: team_statistics
+    granularity: per_team_season
+    params:
+      league: "{league_id}"
+      season: "{season}"
+      team: "{team_id}"
+
+  - id: football_venues
+    display_name: Football Venues
+    description: Venue metadata for the configured country.
+    endpoint: venues
+    entity: operational_metadata
+    granularity: per_venue
+    primary_key: id
+    params:
+      country: "{country}"
+
+  - id: football_standings
+    display_name: Football Standings
+    description: League table and team rank statistics.
+    endpoint: standings
+    entity: standings
+    granularity: per_team
+    params:
+      league: "{league_id}"
+      season: "{season}"
+
+  - id: football_fixtures
+    display_name: Football Fixtures
+    description: Fixture sample with every returned field preserved.
+    endpoint: fixtures
+    entity: games
+    granularity: per_fixture
+    primary_key: fixture.id
+    params:
+      league: "{league_id}"
+      season: "{season}"
+
+  - id: football_players
+    display_name: Football Players
+    description: First-page player records for the sampled team and current season.
+    endpoint: players
+    entity: players
+    granularity: per_player
+    primary_key: player.id
+    params:
+      team: "{team_id}"
+      season: "{season}"
+      page: 1
