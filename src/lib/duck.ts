@@ -18,7 +18,9 @@ let lastProgress: InitProgress = { stage: "idle" };
 export function onInitProgress(cb: (p: InitProgress) => void) {
   listeners.add(cb);
   cb(lastProgress);
-  return () => listeners.delete(cb);
+  return () => {
+    listeners.delete(cb);
+  };
 }
 
 function setProgress(p: InitProgress) {
