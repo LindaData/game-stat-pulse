@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useSearchParams } from "react-router-dom";
+import { addToBasket } from "@/lib/reviewBasket";
+import { toast } from "@/hooks/use-toast";
 import {
   RefreshCw,
   Download,
@@ -92,10 +95,23 @@ export default function RawDataLab() {
   const states = useDatasetStates();
   const initProgress = useInitProgress();
 
-  const [selectedId, setSelectedId] = useState<string>(() => loadSetting("selectedId", DATASETS[0].id));
-  const [tab, setTab] = useState<TabKey>("explore");
+  const [params, setParams] = useSearchParams();
+  const urlDataset = params.get("dataset");
+  const urlTab = params.get("tab") as TabKey | null;
+  const initialId = urlDataset && DATASETS.some((d) => d.id === urlDataset)
+    ? urlDataset
+    : loadSetting("selectedId", DATASETS[0].id);
+  const [selectedId, setSelectedId] = useState<string>(initialId);
+  const [tab, setTab] = useState<TabKey>(urlTab && ["explore","schema","quality","downloads","lineage"].includes(urlTab) ? urlTab : "explore");
 
-  useEffect(() => saveSetting("selectedId", selectedId), [selectedId]);
+  useEffect(() => {
+    saveSetting("selectedId", selectedId);
+    setParams((p) => {
+      const next = new URLSearchParams(p);
+      next.set("dataset", selectedId);
+      return next;
+    }, { replace: true });
+  }, [selectedId, setParams]);
 
   // Lazy boot: load the selected dataset on first reach
   useEffect(() => {
@@ -909,6 +925,19 @@ function RecordInspector({
           </button>
           <button onClick={downloadCsvFn} className="px-3 py-1.5 text-xs rounded bg-muted min-h-[36px] inline-flex items-center gap-1">
             <Download className="w-3 h-3" /> CSV
+          </button>
+          <button
+            onClick={async () => {
+              await addToBasket({
+                dataset_id: dataset.id,
+                dataset_name: dataset.display_name,
+                record,
+              });
+              toast({ title: "Added to review basket" });
+            }}
+            className="px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground min-h-[36px] inline-flex items-center gap-1"
+          >
+            + Basket
           </button>
         </div>
         <div className="overflow-auto p-3">

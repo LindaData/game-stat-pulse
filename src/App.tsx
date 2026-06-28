@@ -1,11 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataProvider } from "@/context/DataContext";
 import Layout from "@/components/Layout";
-import Index from "./pages/Index";
+import Datasets from "./pages/Datasets";
+import Coverage from "./pages/Coverage";
+import Dictionary from "./pages/Dictionary";
+import Quality from "./pages/Quality";
+import ReviewBasket from "./pages/ReviewBasket";
 import NBA from "./pages/NBA";
 import MLB from "./pages/MLB";
 import Status from "./pages/Status";
@@ -24,10 +28,16 @@ const App = () => (
         <BrowserRouter basename={basename || "/"}>
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<Datasets />} />
+              <Route path="/datasets" element={<Datasets />} />
+              <Route path="/coverage" element={<Coverage />} />
+              <Route path="/dictionary" element={<Dictionary />} />
+              <Route path="/quality" element={<Quality />} />
+              <Route path="/basket" element={<ReviewBasket />} />
+              <Route path="/explore" element={<RawDataLab />} />
+              <Route path="/raw" element={<Navigate to="/explore" replace />} />
               <Route path="/nba" element={<NBA />} />
               <Route path="/mlb" element={<MLB />} />
-              <Route path="/raw" element={<RawDataLab />} />
               <Route path="/status" element={<Status />} />
               <Route path="*" element={<NotFound />} />
             </Route>
