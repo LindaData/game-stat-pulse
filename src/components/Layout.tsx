@@ -59,7 +59,7 @@ export default function Layout() {
 
       {/* Bottom mobile nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur border-t border-white/10">
-        <ul className="grid grid-cols-4">
+        <ul className="grid grid-cols-5">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
