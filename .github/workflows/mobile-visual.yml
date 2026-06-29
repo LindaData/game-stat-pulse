@@ -25,7 +25,7 @@ jobs:
       - name: Install Playwright
         run: |
           npm install --no-save @playwright/test@1.55.0
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps webkit
 
       - name: Start production preview
         run: |
