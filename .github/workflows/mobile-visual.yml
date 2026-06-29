@@ -40,7 +40,12 @@ jobs:
           exit 1
 
       - name: Run iPhone smoke test
-        run: npx playwright test tests/visual/mobile-review.spec.ts --reporter=line
+        shell: bash
+        run: |
+          set +e
+          npx playwright test tests/visual/mobile-review.spec.ts --reporter=line 2>&1 | tee /tmp/playwright.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
 
       - name: Upload visual evidence
         if: always()
@@ -48,7 +53,8 @@ jobs:
         with:
           name: mobile-visual-evidence
           path: |
-            test-results/**/*.png
+            test-results/**
             playwright-report/**
             /tmp/game-stat-pulse-preview.log
+            /tmp/playwright.log
           if-no-files-found: ignore
