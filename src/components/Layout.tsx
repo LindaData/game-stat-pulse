@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useBasketCount } from "@/pages/ReviewBasket";
+import GlobalReviewWorkspace from "@/components/GlobalReviewWorkspace";
 
 const navItems = [
   { to: "/", label: "Approve data", icon: CheckSquare2, end: true },
@@ -94,6 +95,8 @@ export default function Layout() {
       <footer className="hidden lg:block border-t border-white/10 py-4 text-center text-xs text-muted-foreground">
         Review and approve source data before model development begins.
       </footer>
+
+      <GlobalReviewWorkspace />
 
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur border-t border-white/10 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
         <ul className="grid grid-cols-5">
