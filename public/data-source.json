@@ -1,5 +1,5 @@
 {
-  "catalog_url": "https://REPLACE_WITH_R2_PUBLIC_DOMAIN/catalog/catalog.json",
-  "fallback_mode": true,
-  "notice": "Until the R2 catalog is published, the app builds a catalog from the existing public LindaData GitHub CSV/JSON files."
+  "catalog_url": "data/catalog/catalog.json",
+  "fallback_mode": false,
+  "notice": "GitHub Pages serves the static data lake generated during deployment. The browser receives Parquet, sample CSV, metadata, and raw review JSON files, never API secrets."
 }
