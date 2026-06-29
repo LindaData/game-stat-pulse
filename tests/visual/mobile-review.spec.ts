@@ -1,23 +1,33 @@
+import { writeFile } from "node:fs/promises";
 import { expect, test, devices } from "@playwright/test";
 
 test.use({ ...devices["iPhone 14"] });
 
 test("mobile review workspace renders and persists notes", async ({ page }) => {
   const pageErrors: string[] = [];
+  const consoleErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
 
   await page.goto("http://127.0.0.1:4173/game-stat-pulse/", {
     waitUntil: "networkidle",
   });
 
+  await page.screenshot({
+    path: "test-results/mobile-loaded.png",
+    fullPage: true,
+  });
+  await writeFile("test-results/mobile-loaded.html", await page.content());
+  await writeFile(
+    "test-results/browser-errors.json",
+    JSON.stringify({ pageErrors, consoleErrors }, null, 2),
+  );
+
   await expect(page.getByText("Game Stat Pulse", { exact: true })).toBeVisible();
   const notesButton = page.getByRole("button", { name: /open review notebook/i });
   await expect(notesButton).toBeVisible();
-
-  await page.screenshot({
-    path: "test-results/mobile-home.png",
-    fullPage: true,
-  });
 
   await notesButton.click();
   await expect(page.getByRole("complementary", { name: /review notebook/i })).toBeVisible();
@@ -43,4 +53,5 @@ test("mobile review workspace renders and persists notes", async ({ page }) => {
   });
 
   expect(pageErrors).toEqual([]);
+  expect(consoleErrors).toEqual([]);
 });
