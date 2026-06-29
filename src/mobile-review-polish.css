@@ -1,0 +1,35 @@
+/* Mobile-first visual polish for the review workspace. */
+.surface-card.bg-gradient-to-br {
+  color: hsl(var(--foreground));
+}
+
+.surface-card.bg-gradient-to-br .text-muted-foreground {
+  color: hsl(215 20% 78%);
+}
+
+.surface-card.bg-gradient-to-br button {
+  color: hsl(var(--foreground));
+  border-color: rgb(255 255 255 / 0.18);
+  background: rgb(255 255 255 / 0.04);
+}
+
+.surface-card.bg-gradient-to-br button:disabled {
+  opacity: 0.55;
+}
+
+.review-notes-launcher,
+#global-review-workspace button,
+#global-review-workspace select,
+#global-review-workspace textarea {
+  touch-action: manipulation;
+}
+
+#global-review-workspace {
+  max-width: calc(100vw - 1rem);
+}
+
+@media (max-width: 420px) {
+  #global-review-workspace {
+    max-height: 70vh;
+  }
+}
