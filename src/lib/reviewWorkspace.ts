@@ -82,7 +82,7 @@ export function getReviewContext(pathname: string, search = ""): ReviewContext {
 
   return {
     key: `route:${path}`,
-    label: routeLabels[path] ?? path.replace(/^\//, "") || "Review",
+    label: routeLabels[path] ?? (path.replace(/^\//, "") || "Review"),
     route: path,
   };
 }
