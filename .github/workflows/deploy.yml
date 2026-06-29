@@ -27,6 +27,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Confirm API-Football secret
+        if: github.event_name != 'pull_request'
         run: |
           if [ -z "$API_FOOTBALL_KEY" ]; then
             echo "API_FOOTBALL_KEY is missing from repository Actions secrets."
@@ -34,16 +35,19 @@ jobs:
           fi
 
       - name: Set up Python
+        if: github.event_name != 'pull_request'
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
       - name: Install data dependencies
+        if: github.event_name != 'pull_request'
         run: |
           python -m pip install --upgrade pip
           pip install duckdb pandas pyarrow requests pyyaml
 
       - name: Build review data catalog
+        if: github.event_name != 'pull_request'
         run: |
           python scripts/build_data_lake.py
           python scripts/run_api_football_review.py
@@ -59,6 +63,7 @@ jobs:
       - run: bun run build
 
       - name: Add limited review samples to the site
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p dist/data/catalog
           cp -R build/samples dist/data/samples
