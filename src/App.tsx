@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataProvider } from "@/context/DataContext";
 import Layout from "@/components/Layout";
+import GlobalReviewWorkspace from "@/components/GlobalReviewWorkspace";
 import Approval from "./pages/Approval";
 import Datasets from "./pages/Datasets";
 import Coverage from "./pages/Coverage";
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
+          <GlobalReviewWorkspace />
         </BrowserRouter>
       </DataProvider>
     </TooltipProvider>
