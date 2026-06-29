@@ -17,6 +17,11 @@
   opacity: 0.55;
 }
 
+.surface-card textarea.bg-background,
+.surface-card input.bg-background {
+  color: hsl(var(--foreground));
+}
+
 .review-notes-launcher,
 #global-review-workspace button,
 #global-review-workspace select,
@@ -26,6 +31,18 @@
 
 #global-review-workspace {
   max-width: calc(100vw - 1rem);
+  background: hsl(var(--navy-light));
+  color: hsl(var(--foreground));
+}
+
+#global-review-workspace .text-muted-foreground {
+  color: hsl(215 20% 72%);
+}
+
+#global-review-workspace select,
+#global-review-workspace option {
+  color: hsl(var(--foreground));
+  background: hsl(var(--navy-deep));
 }
 
 @media (max-width: 420px) {
