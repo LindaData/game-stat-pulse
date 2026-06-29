@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
   CheckCircle2,
-  ChevronRight,
+  ChevronDown,
   Download,
   Loader2,
   RefreshCw,
@@ -45,6 +47,7 @@ export default function Approval() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogMeta, setCatalogMeta] = useState("");
   const [tab, setTab] = useState<"data" | "schema" | "raw">("data");
+  const [queueOpen, setQueueOpen] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
@@ -140,6 +143,7 @@ export default function Approval() {
     if (next) {
       setSelectedId(next.dataset_id);
       setTab("data");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -149,6 +153,15 @@ export default function Approval() {
       reviewed_at_utc: next === "pending" ? null : new Date().toISOString(),
     });
     if (moveNext && next !== "pending") chooseNextPending();
+  };
+
+  const selectDataset = (id: string) => {
+    setSelectedId(id);
+    setTab("data");
+    setQueueOpen(false);
+    window.requestAnimationFrame(() => {
+      document.getElementById("dataset-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
 
   const exportDecisions = () =>
@@ -172,38 +185,53 @@ export default function Approval() {
       }),
     );
 
+  const queueProps = {
+    entries: filtered,
+    selectedId,
+    reviews,
+    query,
+    sport,
+    decision,
+    sports,
+    loading,
+    onQuery: setQuery,
+    onSport: setSport,
+    onDecision: setDecision,
+    onSelect: selectDataset,
+  };
+
   return (
-    <div className="space-y-5">
-      <header className="surface-card p-5 md:p-6 bg-gradient-to-br from-[hsl(var(--navy-light))] to-[hsl(var(--navy-deep))] border-white/10">
-        <div className="flex flex-wrap justify-between gap-4">
+    <div className="space-y-3 sm:space-y-5 pb-28 lg:pb-0">
+      <header className="surface-card p-4 sm:p-6 bg-gradient-to-br from-[hsl(var(--navy-light))] to-[hsl(var(--navy-deep))] border-white/10">
+        <div className="space-y-4">
           <div>
-            <div className="text-[11px] uppercase tracking-widest text-primary mb-2">
-              Approval workspace
-            </div>
-            <h1 className="text-2xl md:text-3xl font-bold">Review football data before modeling</h1>
-            <p className="text-sm text-foreground/70 mt-2 max-w-3xl">
-              Review every discovered column using a maximum of {SAMPLE_LIMIT} sample rows.
+            <div className="text-[10px] uppercase tracking-widest text-primary mb-1.5">Football data review</div>
+            <h1 className="text-xl sm:text-3xl font-bold leading-tight">Check one dataset at a time</h1>
+            <p className="text-sm text-foreground/70 mt-2">
+              Open a dataset, inspect every field, then approve it or flag changes.
             </p>
-            <p className="text-[11px] text-muted-foreground mt-3">
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-2 break-words">
               Catalog: {catalogMeta || "loading"}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button className="min-h-11" variant="outline" onClick={() => void refresh()} disabled={loading}>
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
             </Button>
-            <Button variant="outline" onClick={exportDecisions} disabled={!entries.length}>
-              <Download className="w-4 h-4" /> Export
+            <Button className="min-h-11" variant="outline" onClick={exportDecisions} disabled={!entries.length}>
+              <Download className="w-4 h-4" /> Export backup
             </Button>
           </div>
-        </div>
-        <div className="mt-5">
-          <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
-            <span>{reviewedCount} of {counts.total} reviewed</span>
-            <span>{progress}%</span>
-          </div>
-          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+
+          <div>
+            <div className="flex justify-between text-[11px] text-muted-foreground mb-1.5">
+              <span>{reviewedCount} of {counts.total} reviewed</span>
+              <span>{progress}%</span>
+            </div>
+            <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+            </div>
           </div>
         </div>
       </header>
@@ -214,149 +242,102 @@ export default function Approval() {
         </div>
       )}
 
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Metric label="Datasets" value={counts.total} />
+      <section className="grid grid-cols-4 gap-2">
+        <Metric label="Total" value={counts.total} />
         <Metric label="Pending" value={counts.pending} />
         <Metric label="Approved" value={counts.approved} />
         <Metric label="Changes" value={counts.changes} />
       </section>
 
+      <section className="lg:hidden surface-card overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setQueueOpen((value) => !value)}
+          className="w-full min-h-14 p-3 flex items-center justify-between gap-3 text-left"
+          aria-expanded={queueOpen}
+        >
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Current dataset</div>
+            <div className="font-semibold truncate">{selected?.display_name ?? "Choose a dataset"}</div>
+            <div className="text-[11px] text-muted-foreground">{counts.pending} still pending</div>
+          </div>
+          <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${queueOpen ? "rotate-180" : ""}`} />
+        </button>
+        {queueOpen && <div className="border-t border-white/10 p-3"><QueuePanel {...queueProps} /></div>}
+      </section>
+
       <div className="grid lg:grid-cols-[320px_minmax(0,1fr)] gap-4 items-start">
-        <aside className="surface-card p-3 lg:sticky lg:top-20 space-y-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search datasets"
-              className="pl-9"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={sport}
-              onChange={(event) => setSport(event.target.value)}
-              className="min-h-[42px] rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {sports.map((value) => (
-                <option key={value} value={value}>
-                  {value === "all" ? "All sports" : value}
-                </option>
-              ))}
-            </select>
-            <select
-              value={decision}
-              onChange={(event) => setDecision(event.target.value as Decision | "all")}
-              className="min-h-[42px] rounded-md border border-input bg-background px-2 text-sm"
-            >
-              <option value="all">All decisions</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="changes_requested">Changes</option>
-            </select>
-          </div>
-          <div className="max-h-[62vh] overflow-auto space-y-2 pr-1">
-            {loading ? (
-              <div className="p-4 text-sm text-muted-foreground flex gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> Loading…
-              </div>
-            ) : filtered.length ? (
-              filtered.map((entry) => {
-                const review = reviews[entry.dataset_id] ?? blankReview();
-                return (
-                  <button
-                    key={entry.dataset_id}
-                    onClick={() => setSelectedId(entry.dataset_id)}
-                    className={`w-full rounded-lg border p-3 text-left ${
-                      selectedId === entry.dataset_id
-                        ? "border-primary bg-primary/10"
-                        : "border-white/10 bg-white/[0.02]"
-                    }`}
-                  >
-                    <div className="flex justify-between gap-2">
-                      <span className="font-medium text-sm">{entry.display_name}</span>
-                      <DecisionIcon decision={review.decision} />
-                    </div>
-                    <div className="text-[11px] text-muted-foreground mt-1 truncate">
-                      {entry.entity} · {entry.source_endpoint}
-                    </div>
-                    <div className="flex justify-between gap-2 text-[10px] text-muted-foreground mt-2">
-                      <span>{entry.column_count ?? "?"} columns · {entry.row_count ?? "?"} rows</span>
-                      <AvailabilityBadge status={entry.availability_status} />
-                    </div>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="p-4 text-sm text-muted-foreground">No datasets match these filters.</div>
-            )}
-          </div>
+        <aside className="hidden lg:block surface-card p-3 sticky top-20">
+          <QueuePanel {...queueProps} />
         </aside>
 
         {!selected ? (
-          <div className="surface-card p-8 text-sm text-muted-foreground">Select a dataset.</div>
+          <div className="surface-card p-8 text-sm text-muted-foreground">Choose a dataset to begin.</div>
         ) : (
-          <div className="space-y-4 min-w-0">
-            <section className="surface-card p-4 md:p-5">
-              <div className="flex flex-wrap justify-between gap-4">
+          <div id="dataset-review" className="space-y-3 sm:space-y-4 min-w-0 scroll-mt-20">
+            <section className="surface-card p-4 sm:p-5">
+              <div className="space-y-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-xl font-semibold">{selected.display_name}</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold leading-tight">{selected.display_name}</h2>
                     <DecisionBadge decision={currentReview.decision} />
                     <AvailabilityBadge status={selected.availability_status} />
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">{selected.description}</p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {selected.source_endpoint} · {preview.columns.length} visible columns · {preview.rows.length} sample rows
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-2">{selected.description}</p>
+                  <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                    <Info label="Fields" value={preview.columns.length} />
+                    <Info label="Sample rows" value={preview.rows.length} />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-2 break-all">{selected.source_endpoint}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+
+                <div className="hidden lg:flex flex-wrap gap-2">
                   <Button onClick={() => setReviewDecision("approved", true)}>
                     <CheckCircle2 className="w-4 h-4" /> Approve & next
                   </Button>
                   <Button variant="destructive" onClick={() => setReviewDecision("changes_requested", true)}>
                     <XCircle className="w-4 h-4" /> Changes & next
                   </Button>
-                  <Button variant="outline" onClick={() => setReviewDecision("pending")}>
-                    Reset
-                  </Button>
+                  <Button variant="outline" onClick={() => setReviewDecision("pending")}>Reset</Button>
                 </div>
-              </div>
-              <textarea
-                value={currentReview.notes}
-                onChange={(event) => updateReview({ notes: event.target.value })}
-                placeholder="Notes: missing fields, incorrect values, naming changes, or approval reason."
-                className="mt-4 w-full min-h-24 rounded-md border border-input bg-background p-3 text-sm"
-              />
-              {counts.pending > 0 && currentReview.decision !== "pending" && (
+
+                <textarea
+                  value={currentReview.notes}
+                  onChange={(event) => updateReview({ notes: event.target.value })}
+                  placeholder="Optional note: missing fields, bad values, naming issues, or why it is approved."
+                  className="w-full min-h-28 rounded-md border border-input bg-background p-3 text-base sm:text-sm"
+                />
+
                 <button
-                  onClick={chooseNextPending}
-                  className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  type="button"
+                  onClick={() => setReviewDecision("pending")}
+                  className="lg:hidden min-h-11 text-sm text-muted-foreground underline underline-offset-4"
                 >
-                  Go to next pending dataset <ChevronRight className="w-3 h-3" />
+                  Reset this decision
                 </button>
-              )}
+              </div>
             </section>
 
             <section className="surface-card overflow-hidden">
-              <div className="flex flex-wrap justify-between gap-2 p-3 border-b border-white/10">
-                <div className="flex gap-1">
+              <div className="p-3 border-b border-white/10 space-y-2">
+                <div className="grid grid-cols-3 gap-1.5">
                   {(["data", "schema", "raw"] as const).map((key) => (
                     <button
                       key={key}
                       onClick={() => setTab(key)}
-                      className={`min-h-[40px] px-3 rounded-md text-sm font-medium ${
+                      className={`min-h-11 px-2 rounded-md text-sm font-medium ${
                         tab === key ? "bg-primary text-primary-foreground" : "bg-white/5"
                       }`}
                     >
-                      {key === "data" ? "Data sample" : key === "schema" ? "Schema" : "Raw JSON"}
+                      {key === "data" ? "Records" : key === "schema" ? "Fields" : "Raw"}
                     </button>
                   ))}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
-                  All {preview.columns.length} columns · maximum {SAMPLE_LIMIT} rows
+                <div className="text-[11px] text-muted-foreground text-center">
+                  All {preview.columns.length} fields · up to {SAMPLE_LIMIT} sample records
                 </div>
               </div>
+
               {loadingPreview ? (
                 <div className="p-8 text-sm text-muted-foreground flex gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading preview…
@@ -370,7 +351,7 @@ export default function Approval() {
               ) : tab === "schema" ? (
                 <SchemaTable preview={preview} />
               ) : (
-                <pre className="max-h-[65vh] overflow-auto p-4 text-xs bg-black/20">
+                <pre className="max-h-[65vh] overflow-auto whitespace-pre-wrap break-words p-4 text-xs bg-black/20">
                   {preview.raw
                     ? JSON.stringify(preview.raw, null, 2)
                     : "Raw JSON is intentionally not published on the public review site."}
@@ -378,6 +359,122 @@ export default function Approval() {
               )}
             </section>
           </div>
+        )}
+      </div>
+
+      {selected && (
+        <div className="lg:hidden fixed left-0 right-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 border-t border-white/10 bg-[hsl(var(--navy-deep))]/95 backdrop-blur p-2.5">
+          <div className="grid grid-cols-2 gap-2 max-w-xl mx-auto">
+            <Button className="min-h-12 text-sm" onClick={() => setReviewDecision("approved", true)}>
+              <CheckCircle2 className="w-5 h-5" /> Approve
+            </Button>
+            <Button className="min-h-12 text-sm" variant="destructive" onClick={() => setReviewDecision("changes_requested", true)}>
+              <XCircle className="w-5 h-5" /> Needs changes
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type QueuePanelProps = {
+  entries: CatalogEntry[];
+  selectedId: string;
+  reviews: Record<string, Review>;
+  query: string;
+  sport: string;
+  decision: Decision | "all";
+  sports: string[];
+  loading: boolean;
+  onQuery: (value: string) => void;
+  onSport: (value: string) => void;
+  onDecision: (value: Decision | "all") => void;
+  onSelect: (id: string) => void;
+};
+
+function QueuePanel({
+  entries,
+  selectedId,
+  reviews,
+  query,
+  sport,
+  decision,
+  sports,
+  loading,
+  onQuery,
+  onSport,
+  onDecision,
+  onSelect,
+}: QueuePanelProps) {
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(event) => onQuery(event.target.value)}
+          placeholder="Search datasets"
+          className="pl-9 min-h-11 text-base sm:text-sm"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          value={sport}
+          onChange={(event) => onSport(event.target.value)}
+          className="min-h-11 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          {sports.map((value) => (
+            <option key={value} value={value}>{value === "all" ? "All sports" : value}</option>
+          ))}
+        </select>
+        <select
+          value={decision}
+          onChange={(event) => onDecision(event.target.value as Decision | "all")}
+          className="min-h-11 rounded-md border border-input bg-background px-2 text-sm"
+        >
+          <option value="all">All decisions</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="changes_requested">Changes</option>
+        </select>
+      </div>
+
+      <div className="max-h-[58vh] overflow-auto space-y-2 pr-1">
+        {loading ? (
+          <div className="p-4 text-sm text-muted-foreground flex gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+          </div>
+        ) : entries.length ? (
+          entries.map((entry) => {
+            const review = reviews[entry.dataset_id] ?? blankReview();
+            return (
+              <button
+                key={entry.dataset_id}
+                onClick={() => onSelect(entry.dataset_id)}
+                className={`w-full min-h-20 rounded-lg border p-3 text-left ${
+                  selectedId === entry.dataset_id
+                    ? "border-primary bg-primary/10"
+                    : "border-white/10 bg-white/[0.02]"
+                }`}
+              >
+                <div className="flex justify-between gap-2">
+                  <span className="font-medium text-sm leading-tight">{entry.display_name}</span>
+                  <DecisionIcon decision={review.decision} />
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-1 break-all">
+                  {entry.entity} · {entry.source_endpoint}
+                </div>
+                <div className="flex justify-between gap-2 text-[10px] text-muted-foreground mt-2">
+                  <span>{entry.column_count ?? "?"} fields · {entry.row_count ?? "?"} rows</span>
+                  <AvailabilityBadge status={entry.availability_status} />
+                </div>
+              </button>
+            );
+          })
+        ) : (
+          <div className="p-4 text-sm text-muted-foreground">No datasets match these filters.</div>
         )}
       </div>
     </div>
@@ -437,71 +534,145 @@ async function fetchPreview(
 
 function DataTable({ preview }: { preview: Preview }) {
   if (!preview.columns.length) {
-    return <div className="p-8 text-sm text-muted-foreground">No sampled columns available.</div>;
+    return <div className="p-8 text-sm text-muted-foreground">No sampled fields available.</div>;
   }
+
   return (
-    <div className="max-h-[65vh] overflow-auto">
-      <table className="min-w-max w-full text-xs">
-        <thead className="sticky top-0 bg-card z-10">
-          <tr>
-            <th className="sticky left-0 bg-card p-2 z-20">#</th>
-            {preview.columns.map((column) => (
-              <th key={column} className="p-2 text-left whitespace-nowrap">{column}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {preview.rows.map((row, index) => (
-            <tr key={index} className="border-t border-white/5">
-              <td className="sticky left-0 bg-card p-2 text-muted-foreground">{index + 1}</td>
-              {preview.columns.map((column) => {
-                const value = cell(row[column]);
-                return (
-                  <td key={column} className="p-2 max-w-[320px] whitespace-nowrap">
-                    <span className="block max-w-[320px] truncate" title={value}>
-                      {value || "—"}
-                    </span>
-                  </td>
-                );
-              })}
+    <>
+      <MobileRecordViewer preview={preview} />
+      <div className="hidden lg:block max-h-[65vh] overflow-auto">
+        <table className="min-w-max w-full text-xs">
+          <thead className="sticky top-0 bg-card z-10">
+            <tr>
+              <th className="sticky left-0 bg-card p-2 z-20">#</th>
+              {preview.columns.map((column) => (
+                <th key={column} className="p-2 text-left whitespace-nowrap">{column}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {preview.rows.map((row, index) => (
+              <tr key={index} className="border-t border-white/5">
+                <td className="sticky left-0 bg-card p-2 text-muted-foreground">{index + 1}</td>
+                {preview.columns.map((column) => {
+                  const value = cell(row[column]);
+                  return (
+                    <td key={column} className="p-2 max-w-[320px] whitespace-nowrap">
+                      <span className="block max-w-[320px] truncate" title={value}>{value || "—"}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+function MobileRecordViewer({ preview }: { preview: Preview }) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [preview]);
+
+  if (!preview.rows.length) {
+    return <div className="lg:hidden p-6 text-sm text-muted-foreground">Fields were found, but there are no sample records.</div>;
+  }
+
+  const safeIndex = Math.min(index, preview.rows.length - 1);
+  const row = preview.rows[safeIndex];
+
+  return (
+    <div className="lg:hidden">
+      <div className="sticky top-14 z-20 flex items-center justify-between gap-2 p-3 bg-card border-b border-white/10">
+        <Button
+          size="sm"
+          variant="outline"
+          className="min-h-10"
+          disabled={safeIndex === 0}
+          onClick={() => setIndex((value) => Math.max(0, value - 1))}
+        >
+          <ArrowLeft className="w-4 h-4" /> Previous
+        </Button>
+        <div className="text-xs font-medium">Record {safeIndex + 1} of {preview.rows.length}</div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="min-h-10"
+          disabled={safeIndex === preview.rows.length - 1}
+          onClick={() => setIndex((value) => Math.min(preview.rows.length - 1, value + 1))}
+        >
+          Next <ArrowRight className="w-4 h-4" />
+        </Button>
+      </div>
+
+      <div className="divide-y divide-white/10">
+        {preview.columns.map((column) => (
+          <div key={column} className="p-4">
+            <div className="text-[10px] uppercase tracking-wider text-primary font-semibold break-all">{column}</div>
+            <div className="mt-1.5 text-sm leading-relaxed break-words whitespace-pre-wrap">{cell(row[column]) || "—"}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
 function SchemaTable({ preview }: { preview: Preview }) {
   return (
-    <div className="max-h-[65vh] overflow-auto">
-      <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-card">
-          <tr>
-            <th className="p-3 text-left">#</th>
-            <th className="p-3 text-left">Field</th>
-            <th className="p-3 text-left">Type</th>
-          </tr>
-        </thead>
-        <tbody>
-          {preview.schema.map((column, index) => (
-            <tr key={`${column.name}-${index}`} className="border-t border-white/5">
-              <td className="p-3 text-muted-foreground">{index + 1}</td>
-              <td className="p-3 font-mono text-xs">{column.name}</td>
-              <td className="p-3 text-muted-foreground">{column.type}</td>
+    <>
+      <div className="lg:hidden divide-y divide-white/10">
+        {preview.schema.map((column, index) => (
+          <div key={`${column.name}-${index}`} className="p-4 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-[10px] text-muted-foreground">Field {index + 1}</div>
+              <div className="font-mono text-xs mt-1 break-all">{column.name}</div>
+            </div>
+            <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-[10px] text-muted-foreground">{column.type}</span>
+          </div>
+        ))}
+      </div>
+      <div className="hidden lg:block max-h-[65vh] overflow-auto">
+        <table className="w-full text-sm">
+          <thead className="sticky top-0 bg-card">
+            <tr>
+              <th className="p-3 text-left">#</th>
+              <th className="p-3 text-left">Field</th>
+              <th className="p-3 text-left">Type</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {preview.schema.map((column, index) => (
+              <tr key={`${column.name}-${index}`} className="border-t border-white/5">
+                <td className="p-3 text-muted-foreground">{index + 1}</td>
+                <td className="p-3 font-mono text-xs">{column.name}</td>
+                <td className="p-3 text-muted-foreground">{column.type}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="surface-card p-3">
+    <div className="surface-card p-2.5 text-center min-w-0">
+      <div className="text-[9px] sm:text-[10px] uppercase tracking-wide text-muted-foreground truncate">{label}</div>
+      <div className="text-lg sm:text-xl font-bold mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg bg-white/[0.04] p-3">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-xl font-bold mt-1">{value}</div>
+      <div className="font-semibold mt-1">{value}</div>
     </div>
   );
 }
