@@ -25,7 +25,11 @@ test("mobile review workspace renders and persists notes", async ({ page }) => {
     JSON.stringify({ pageErrors, consoleErrors }, null, 2),
   );
 
-  await expect(page.getByText("Game Stat Pulse", { exact: true })).toBeVisible();
+  const appHome = page.getByRole("link", {
+    name: /Game Stat Pulse approval workspace/i,
+  });
+  await expect(appHome).toBeVisible();
+
   const notesButton = page.getByRole("button", { name: /open review notebook/i });
   await expect(notesButton).toBeVisible();
 
@@ -36,7 +40,7 @@ test("mobile review workspace renders and persists notes", async ({ page }) => {
   await pageNote.fill("Mobile visual smoke test");
 
   await page.getByRole("link", { name: /catalog/i }).last().click();
-  await expect(page.getByText("Game Stat Pulse", { exact: true })).toBeVisible();
+  await expect(appHome).toBeVisible();
   await expect(page.getByRole("button", { name: /open review notebook/i })).toBeVisible();
 
   await page.goto("http://127.0.0.1:4173/game-stat-pulse/", {
