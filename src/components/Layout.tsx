@@ -37,15 +37,15 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <header className="sticky top-0 z-30 bg-[hsl(var(--navy-deep))]/90 backdrop-blur border-b border-white/10">
-        <div className="max-w-[1600px] mx-auto px-4 h-14 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur border-b border-white/10 pt-[env(safe-area-inset-top)]">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-4">
           <NavLink to="/" className="flex items-center gap-2 min-w-0" aria-label="Game Stat Pulse approval workspace">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shrink-0">
               G
             </div>
             <div className="leading-tight min-w-0">
               <div className="text-sm font-semibold text-foreground truncate">Game Stat Pulse</div>
-              <div className="text-[10px] uppercase tracking-wider text-primary truncate">Data approval first</div>
+              <div className="hidden min-[360px]:block text-[10px] uppercase tracking-wider text-primary truncate">Data approval first</div>
             </div>
           </NavLink>
           <nav className="hidden lg:flex items-center gap-1 overflow-x-auto" aria-label="Primary navigation">
@@ -87,7 +87,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 py-5 pb-24 lg:pb-10">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-4 py-3 sm:py-5 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-10">
         <Outlet />
       </main>
 
@@ -95,7 +95,7 @@ export default function Layout() {
         Review and approve source data before model development begins.
       </footer>
 
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur border-t border-white/10" aria-label="Mobile navigation">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur border-t border-white/10 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
         <ul className="grid grid-cols-5">
           {mobileItems.map((item) => {
             const Icon = item.icon;
@@ -106,7 +106,7 @@ export default function Layout() {
                   end={item.end}
                   className={({ isActive }) =>
                     cn(
-                      "flex flex-col items-center justify-center py-2.5 gap-0.5 text-[11px] relative",
+                      "min-h-[4.25rem] flex flex-col items-center justify-center py-2 gap-0.5 text-[11px] relative active:bg-white/5",
                       isActive ? "text-primary" : "text-foreground/60",
                     )
                   }
