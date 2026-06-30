@@ -186,6 +186,20 @@ def first_nested_id(payload: dict[str, Any], *paths: tuple[str, ...]) -> int | N
     return None
 
 
+def nested_ids(payload: dict[str, Any], path: tuple[str, ...]) -> list[int]:
+    ids: list[int] = []
+    for row in response_rows(payload):
+        value: Any = row
+        for key in path:
+            if not isinstance(value, dict):
+                value = None
+                break
+            value = value.get(key)
+        if isinstance(value, int) and value not in ids:
+            ids.append(value)
+    return ids
+
+
 def resolve_context(defaults: dict[str, Any]) -> dict[str, Any]:
     context = dict(defaults)
     league_id = int(context.get("league_id", 39))
@@ -193,7 +207,14 @@ def resolve_context(defaults: dict[str, Any]) -> dict[str, Any]:
     context["season"] = latest_season(leagues_payload)
 
     teams_payload, _ = api_get("teams", {"league": league_id, "season": context["season"]})
-    context["team_id"] = first_nested_id(teams_payload, ("team", "id")) or context.get("team_id")
+    team_ids = nested_ids(teams_payload, ("team", "id"))
+    context["team_id"] = team_ids[0] if team_ids else context.get("team_id")
+    context["opponent_team_id"] = (
+        next((team_id for team_id in team_ids if team_id != context["team_id"]), None)
+        or context.get("opponent_team_id")
+    )
+    if context.get("team_id") and context.get("opponent_team_id"):
+        context["h2h"] = f"{context['team_id']}-{context['opponent_team_id']}"
 
     fixtures_payload, _ = api_get(
         "fixtures",

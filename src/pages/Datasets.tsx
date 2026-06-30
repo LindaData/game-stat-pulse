@@ -6,10 +6,10 @@ import { loadCatalog, type Catalog, type CatalogEntry } from "@/lib/catalog";
 import { downloadRawJson, downloadSampleCsv, sanitizeFilename } from "@/lib/download";
 import { toast } from "@/hooks/use-toast";
 
-type SportFilter = "all" | "NBA" | "MLB" | "Meta";
-type EntityFilter = "all" | CatalogEntry["entity"];
+type SportFilter = "all" | string;
+type EntityFilter = "all" | string;
 
-const ENTITY_LABELS: Record<CatalogEntry["entity"], string> = {
+const ENTITY_LABELS: Partial<Record<string, string>> = {
   games: "Games",
   teams: "Teams",
   players: "Players",
@@ -19,7 +19,29 @@ const ENTITY_LABELS: Record<CatalogEntry["entity"], string> = {
   scores: "Scores",
   odds: "Odds",
   leagues: "Leagues",
+  head_to_head: "Head-to-head",
+  fixture_events: "Fixture events",
+  fixture_lineups: "Fixture lineups",
+  fixture_statistics: "Fixture statistics",
+  player_game_statistics: "Player game statistics",
+  injuries: "Injuries",
+  provider_predictions: "Provider predictions",
+  coaches: "Coaches",
+  squads: "Squads",
+  player_team_history: "Player team history",
+  transfers: "Transfers",
+  trophies: "Trophies",
+  sidelined: "Sidelined",
+  player_rankings: "Player rankings",
+  betting_reference: "Betting reference",
   operational_metadata: "Operational metadata",
+};
+
+const SPORT_LABELS: Partial<Record<string, string>> = {
+  NBA: "Basketball",
+  MLB: "Baseball",
+  Football: "Football",
+  Meta: "Meta",
 };
 
 export default function Datasets() {
@@ -36,12 +58,22 @@ export default function Datasets() {
     });
   }, []);
 
-  const entries = catalog?.entries ?? [];
+  const entries = useMemo(() => catalog?.entries ?? [], [catalog]);
   const filtered = useMemo(() => {
     return entries.filter(
       (e) => (sport === "all" || e.sport === sport) && (entity === "all" || e.entity === entity),
     );
   }, [entries, sport, entity]);
+
+  const sportFilters = useMemo<SportFilter[]>(
+    () => ["all", ...Array.from(new Set(entries.map((e) => e.sport))).sort()],
+    [entries],
+  );
+
+  const entityFilters = useMemo<EntityFilter[]>(
+    () => ["all", ...Array.from(new Set(entries.map((e) => e.entity))).sort()],
+    [entries],
+  );
 
   const stats = useMemo(() => {
     const sports = new Set(entries.map((e) => e.sport));
@@ -58,20 +90,6 @@ export default function Datasets() {
       parquet,
     };
   }, [entries]);
-
-  const entityFilters: EntityFilter[] = [
-    "all",
-    "games",
-    "teams",
-    "players",
-    "standings",
-    "team_statistics",
-    "player_statistics",
-    "scores",
-    "odds",
-    "leagues",
-    "operational_metadata",
-  ];
 
   async function handleSample(e: CatalogEntry) {
     if (!e.sample_csv_url) {
@@ -135,16 +153,16 @@ export default function Datasets() {
 
       <section className="space-y-3" aria-label="Filters">
         <div className="flex flex-wrap gap-2">
-          {(["all", "NBA", "MLB", "Meta"] as SportFilter[]).map((s) => (
+          {sportFilters.map((s) => (
             <FilterChip key={s} active={sport === s} onClick={() => setSport(s)}>
-              {s === "all" ? "All sports" : s === "NBA" ? "Basketball" : s === "MLB" ? "Baseball" : "Meta"}
+              {s === "all" ? "All sports" : SPORT_LABELS[s] ?? s}
             </FilterChip>
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
           {entityFilters.map((e) => (
             <FilterChip key={e} active={entity === e} onClick={() => setEntity(e)}>
-              {e === "all" ? "All entities" : ENTITY_LABELS[e as CatalogEntry["entity"]]}
+              {e === "all" ? "All entities" : entityLabel(e)}
             </FilterChip>
           ))}
         </div>
@@ -166,7 +184,7 @@ export default function Datasets() {
                   <div className="min-w-0">
                     <h3 className="font-semibold text-card-foreground truncate">{e.display_name}</h3>
                     <p className="text-[11px] text-muted-foreground">
-                      {e.sport} · {ENTITY_LABELS[e.entity] ?? e.entity}
+                      {e.sport} · {entityLabel(e.entity)}
                       {e.granularity ? ` · ${e.granularity}` : ""}
                       {e.season ? ` · ${e.season}` : ""}
                     </p>
@@ -256,6 +274,10 @@ function StatTile({ label, value }: { label: string; value: number }) {
       <div className="text-xl font-bold tabular-nums text-card-foreground mt-1">{(value ?? 0).toLocaleString()}</div>
     </div>
   );
+}
+
+function entityLabel(entity: string) {
+  return ENTITY_LABELS[entity] ?? entity.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function FilterChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {

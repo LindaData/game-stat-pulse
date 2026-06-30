@@ -1,7 +1,13 @@
-name: Publish Data Lake to R2
+name: Publish Data Lake
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-data-lake.yml"
+      - "config/**"
+      - "scripts/**"
   schedule:
     - cron: "0 12 * * *"
 
@@ -44,13 +50,12 @@ jobs:
       - name: Validate datasets
         run: python scripts/validate_datasets.py
 
-      - name: Upload build artifact when R2 is not configured
-        if: ${{ env.R2_ACCESS_KEY_ID == '' }}
+      - name: Upload data lake build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: data-lake-build
+          name: modeling-data-lake-build
           path: build
-          retention-days: 7
+          retention-days: 14
 
       - name: Configure rclone for Cloudflare R2
         if: ${{ env.R2_ACCESS_KEY_ID != '' }}

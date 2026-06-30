@@ -16,17 +16,7 @@ export interface CatalogEntry {
   sport: "NBA" | "MLB" | "Meta" | string;
   source_api: string;
   source_endpoint: string;
-  entity:
-    | "games"
-    | "teams"
-    | "players"
-    | "standings"
-    | "team_statistics"
-    | "player_statistics"
-    | "scores"
-    | "odds"
-    | "leagues"
-    | "operational_metadata";
+  entity: string;
   granularity: "per_game" | "per_team" | "per_player" | "snapshot" | "manifest" | string;
   league_id: string | number | null;
   league_name: string | null;
