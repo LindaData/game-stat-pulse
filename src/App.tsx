@@ -15,6 +15,7 @@ const Coverage = lazy(() => import("./pages/Coverage"));
 const Dictionary = lazy(() => import("./pages/Dictionary"));
 const Quality = lazy(() => import("./pages/Quality"));
 const ReviewBasket = lazy(() => import("./pages/ReviewBasket"));
+const Signals = lazy(() => import("./pages/Signals"));
 const NBA = lazy(() => import("./pages/NBA"));
 const MLB = lazy(() => import("./pages/MLB"));
 const Status = lazy(() => import("./pages/Status"));
@@ -38,6 +39,7 @@ const App = () => (
                 <Route path="/desk" element={<BettingDesk />} />
                 <Route path="/approval" element={<Approval />} />
                 <Route path="/datasets" element={<Datasets />} />
+                <Route path="/signals" element={<Signals />} />
                 <Route path="/coverage" element={<Coverage />} />
                 <Route path="/dictionary" element={<Dictionary />} />
                 <Route path="/quality" element={<Quality />} />

@@ -34,7 +34,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           cp dist/index.html dist/404.html
-          for route in desk approval datasets coverage dictionary quality basket explore raw nba mlb status; do
+          for route in desk approval datasets signals coverage dictionary quality basket explore raw nba mlb status; do
             mkdir -p "dist/${route}"
             cp dist/index.html "dist/${route}/index.html"
           done

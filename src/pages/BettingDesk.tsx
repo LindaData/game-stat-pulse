@@ -54,6 +54,12 @@ const MODEL_GROUPS = [
 
 const WORKFLOW = [
   {
+    title: "Read current signals",
+    body: "Use team form, average margin, live board status, and the market-data checklist as the daily starting point.",
+    href: "/signals",
+    action: "Open signals",
+  },
+  {
     title: "Review priority feeds",
     body: "Clear or flag market, availability, and fixture feeds before trusting downstream features.",
     href: "/approval",
