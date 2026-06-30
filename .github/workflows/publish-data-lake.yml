@@ -2,10 +2,6 @@ name: Publish Data Lake
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Deploy to GitHub Pages"]
-    types: [completed]
-    branches: [main]
   schedule:
     - cron: "0 12 * * *"
 
@@ -22,7 +18,6 @@ env:
 
 jobs:
   build-and-publish:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -4,12 +4,14 @@ Game Stat Pulse is a mobile-first sports-data approval portal. Its current job i
 
 ## Current review workflow
 
-1. When `API_FOOTBALL_KEY` is configured, GitHub Actions reads it from repository secrets.
-2. `scripts/fetch_api_football.py` calls the configured API-Football endpoints.
-3. Every discovered field is retained in the normalized schema.
-4. The public review page receives a limited sample of up to 25 rows per endpoint.
-5. A reviewer can approve the dataset, request changes, add notes, and export the decision log as CSV.
-6. Models remain intentionally locked until the data is approved.
+1. Pushes to `main` deploy only the browser app to GitHub Pages.
+2. The dedicated data-lake workflow reads `API_FOOTBALL_KEY` from repository secrets when it is manually dispatched or run by schedule.
+3. `scripts/fetch_api_football.py` calls the configured API-Football endpoints.
+4. Every discovered field is retained in the normalized schema.
+5. The generated build is uploaded as the `modeling-data-lake-build` Actions artifact, with optional R2 publishing when R2 secrets are configured.
+6. The public app loads an R2 catalog when `public/data-source.json` points at one; otherwise it uses the browser fallback catalog.
+7. A reviewer can approve the dataset, request changes, add notes, and export the decision log as CSV.
+8. Models remain intentionally locked until the data is approved.
 
 The API key is never sent to the browser or committed to the repository.
 
@@ -19,13 +21,13 @@ The API key is never sent to the browser or committed to the repository.
 - **Review page:** Dynamic catalog queue with search, filters, all-column tables, schema inspection, notes, and approval decisions.
 - **API ingestion:** Python requests executed only inside GitHub Actions.
 - **Storage:** Bronze JSON, normalized Parquet, limited CSV samples, schemas, profiles, quality reports, and a central catalog.
-- **Pages deployment:** GitHub Pages can receive review samples and metadata when data generation succeeds, not the complete data lake.
-- **Optional full lake:** Cloudflare R2 can receive the full generated build through the scheduled publishing workflow.
+- **Pages deployment:** GitHub Pages serves the app only and does not run secret-backed API pulls.
+- **Optional full lake:** Cloudflare R2 can receive the full generated build through the manual or scheduled publishing workflow.
 - **Modeling data plan:** `config/pro_sports_modeling_sources.yml` tracks the source domains needed for professional sports betting research across football, basketball, baseball, hockey, and American football.
 
 ## GitHub secret for API-Football samples
 
-API-Football review samples use a repository Actions secret. Open **Settings → Secrets and variables → Actions** and confirm:
+API-Football review samples use a repository Actions secret. Open **Settings -> Secrets and variables -> Actions** and confirm:
 
 | Secret | Purpose |
 | --- | --- |
@@ -81,7 +83,7 @@ The default API-Football review season is pinned to `2024` because the current A
 - All discovered sample columns are visible in a horizontally scrollable table.
 - Public row count is deliberately limited during approval.
 - Schema metadata is shown separately from the sample values.
-- Decisions and notes are stored in the reviewer’s browser and can be exported as `game_stat_pulse_data_approvals.csv`.
+- Decisions and notes are stored in the reviewer's browser and can be exported as `game_stat_pulse_data_approvals.csv`.
 - Central multi-reviewer persistence is a later phase and will require authentication plus a backend.
 
 ## Local development
@@ -108,6 +110,7 @@ Never place the real key in `.env` files that are committed, source code, fronte
 ## Deployment
 
 - Pushes to `main` run `.github/workflows/deploy.yml`.
-- The workflow deploys the app to GitHub Pages. On non-PR builds, it also publishes limited review samples when the data-generation step succeeds.
-- `.github/workflows/publish-data-lake.yml` runs daily, on manual dispatch, and after a successful `main` Pages deployment.
+- The workflow deploys the app to GitHub Pages and does not call API-Football or expose repository secrets.
+- `.github/workflows/publish-data-lake.yml` runs on manual dispatch and on the daily schedule only, so app deploys do not spend API quota.
 - The data-lake workflow uses `API_FOOTBALL_KEY` from Actions secrets, uploads a `modeling-data-lake-build` artifact for model work, and can also publish the complete generated lake to R2 when the optional secrets are configured.
+- Provider quota note: the June 30, 2026 setup run hit the API-Football daily request limit. Wait for the daily reset or upgrade the plan before manually dispatching another fresh data pull.
