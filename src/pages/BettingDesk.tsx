@@ -72,6 +72,12 @@ const WORKFLOW = [
     action: "Open portfolio lab",
   },
   {
+    title: "Audit the model",
+    body: "Paste settled prediction logs to measure calibration, Brier score, closing-line value, realized P&L, and ROI.",
+    href: "/model",
+    action: "Open model audit",
+  },
+  {
     title: "Review priority feeds",
     body: "Clear or flag market, availability, and fixture feeds before trusting downstream features.",
     href: "/approval",

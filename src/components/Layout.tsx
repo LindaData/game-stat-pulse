@@ -9,7 +9,6 @@ import {
   FlaskConical,
   LayoutGrid,
   ListChecks,
-  Lock,
   ShieldCheck,
   TrendingUp,
   Target,
@@ -23,6 +22,7 @@ const navItems = [
   { to: "/signals", label: "Signals", icon: TrendingUp },
   { to: "/edge", label: "Edge lab", icon: Calculator },
   { to: "/portfolio", label: "Portfolio", icon: ClipboardList },
+  { to: "/model", label: "Model audit", icon: FlaskConical },
   { to: "/datasets", label: "Markets", icon: LayoutGrid },
   { to: "/explore", label: "Data lab", icon: Database },
   { to: "/coverage", label: "Coverage", icon: Activity },
@@ -37,8 +37,8 @@ const mobileItems = [
   { to: "/desk", label: "Desk", icon: Target },
   { to: "/signals", label: "Signals", icon: TrendingUp },
   { to: "/portfolio", label: "Card", icon: ClipboardList },
+  { to: "/model", label: "Audit", icon: FlaskConical },
   { to: "/edge", label: "Edge", icon: Calculator },
-  { to: "/basket", label: "Tickets", icon: ListChecks },
 ];
 
 const sportRail = [
@@ -55,7 +55,7 @@ const sportRail = [
 const tickerItems = [
   "API-Football markets gated by Actions secret",
   "Public review mode: limited samples",
-  "Models locked until source approval",
+  "Model audit ready for settled prediction logs",
   "Odds feeds routed through data-lake workflow",
 ];
 
@@ -122,14 +122,6 @@ export default function Layout() {
                 </NavLink>
               );
             })}
-            <span
-              aria-disabled="true"
-              title="Models remain locked until the data review is approved"
-              className="hidden 2xl:flex px-3 py-2 rounded-md text-sm font-semibold text-foreground/35 items-center gap-1.5 cursor-not-allowed whitespace-nowrap"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <FlaskConical className="w-4 h-4" /> Models
-            </span>
           </nav>
         </div>
 

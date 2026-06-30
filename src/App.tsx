@@ -13,6 +13,7 @@ const BettingDesk = lazy(() => import("./pages/BettingDesk"));
 const Datasets = lazy(() => import("./pages/Datasets"));
 const EdgeLab = lazy(() => import("./pages/EdgeLab"));
 const Portfolio = lazy(() => import("./pages/Portfolio"));
+const ModelAudit = lazy(() => import("./pages/ModelAudit"));
 const Coverage = lazy(() => import("./pages/Coverage"));
 const Dictionary = lazy(() => import("./pages/Dictionary"));
 const Quality = lazy(() => import("./pages/Quality"));
@@ -43,6 +44,7 @@ const App = () => (
                 <Route path="/datasets" element={<Datasets />} />
                 <Route path="/edge" element={<EdgeLab />} />
                 <Route path="/portfolio" element={<Portfolio />} />
+                <Route path="/model" element={<ModelAudit />} />
                 <Route path="/signals" element={<Signals />} />
                 <Route path="/coverage" element={<Coverage />} />
                 <Route path="/dictionary" element={<Dictionary />} />
