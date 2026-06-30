@@ -4,12 +4,16 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   CheckCircle2,
   ChevronDown,
   Download,
   Loader2,
   RefreshCw,
   Search,
+  ShieldAlert,
+  Ticket,
+  TrendingUp,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,6 +37,7 @@ type Preview = {
 const EMPTY: Preview = { columns: [], rows: [], schema: [], raw: null };
 
 export default function Approval() {
+  const heroImage = `${import.meta.env.BASE_URL}assets/sportsbook-market-board.png`;
   const [params, setParams] = useSearchParams();
   const [entries, setEntries] = useState<CatalogEntry[]>([]);
   const [selectedId, setSelectedId] = useState(params.get("dataset") ?? "");
@@ -202,37 +207,63 @@ export default function Approval() {
 
   return (
     <div className="space-y-3 sm:space-y-5 pb-28 lg:pb-0">
-      <header className="surface-card p-4 sm:p-6 bg-gradient-to-br from-[hsl(var(--navy-light))] to-[hsl(var(--navy-deep))] border-white/10">
-        <div className="space-y-4">
-          <div>
-            <div className="text-[10px] uppercase tracking-widest text-primary mb-1.5">Football data review</div>
-            <h1 className="text-xl sm:text-3xl font-bold leading-tight">Check one dataset at a time</h1>
-            <p className="text-sm text-foreground/70 mt-2">
-              Open a dataset, inspect every field, then approve it or flag changes.
-            </p>
-            <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-2 break-words">
+      <header className="relative overflow-hidden rounded-lg border border-white/10 bg-[hsl(var(--navy-deep))] sportsbook-glow">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-45"
+          style={{ backgroundImage: `url('${heroImage}')` }}
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--navy-deep))_0%,hsl(var(--navy-deep)/0.92)_36%,hsl(var(--navy-deep)/0.54)_100%)]" aria-hidden="true" />
+        <div className="relative grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-end">
+          <div className="max-w-3xl space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_16px_hsl(var(--primary))]" />
+              Live Modeling Board
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black leading-[0.98] tracking-normal">
+                Review every market feed before the model takes a position.
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm sm:text-base text-foreground/[0.76]">
+                Sportsbook-style data approval for odds, fixtures, player context, injuries, availability,
+                and betting-reference inputs. This is the trading desk before the staking logic.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              <Button className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => void refresh()} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Sync board
+              </Button>
+              <Button className="min-h-11 border-secondary/45 text-secondary hover:bg-secondary/10" variant="outline" onClick={exportDecisions} disabled={!entries.length}>
+                <Download className="w-4 h-4" /> Export ticket
+              </Button>
+            </div>
+            <p className="text-[10px] sm:text-[11px] text-muted-foreground break-words">
               Catalog: {catalogMeta || "loading"}
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Button className="min-h-11" variant="outline" onClick={() => void refresh()} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-            </Button>
-            <Button className="min-h-11" variant="outline" onClick={exportDecisions} disabled={!entries.length}>
-              <Download className="w-4 h-4" /> Export backup
-            </Button>
-          </div>
-
-          <div>
-            <div className="flex justify-between text-[11px] text-muted-foreground mb-1.5">
-              <span>{reviewedCount} of {counts.total} reviewed</span>
-              <span>{progress}%</span>
+          <aside className="market-panel p-4 bg-black/40 backdrop-blur-md">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Review slip</div>
+                <div className="mt-1 text-lg font-black tabular-nums">{progress}% cleared</div>
+              </div>
+              <Ticket className="h-8 w-8 text-secondary" />
             </div>
-            <div className="h-2.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="mb-3 h-2.5 overflow-hidden rounded-sm bg-white/10">
               <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
             </div>
-          </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="odds-cell">
+                <div className="text-[10px] uppercase text-muted-foreground">Reviewed</div>
+                <div>{reviewedCount}/{counts.total}</div>
+              </div>
+              <div className="odds-cell">
+                <div className="text-[10px] uppercase text-muted-foreground">Pending</div>
+                <div className="text-secondary">{counts.pending}</div>
+              </div>
+            </div>
+          </aside>
         </div>
       </header>
 
@@ -242,11 +273,11 @@ export default function Approval() {
         </div>
       )}
 
-      <section className="grid grid-cols-4 gap-2">
-        <Metric label="Total" value={counts.total} />
-        <Metric label="Pending" value={counts.pending} />
-        <Metric label="Approved" value={counts.approved} />
-        <Metric label="Changes" value={counts.changes} />
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Metric label="Markets" value={counts.total} icon={BarChart3} />
+        <Metric label="Open tickets" value={counts.pending} icon={Ticket} tone="amber" />
+        <Metric label="Cleared" value={counts.approved} icon={TrendingUp} tone="green" />
+        <Metric label="Risk flags" value={counts.changes} icon={ShieldAlert} tone="red" />
       </section>
 
       <section className="lg:hidden surface-card overflow-hidden">
@@ -257,9 +288,9 @@ export default function Approval() {
           aria-expanded={queueOpen}
         >
           <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Current dataset</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Current market feed</div>
             <div className="font-semibold truncate">{selected?.display_name ?? "Choose a dataset"}</div>
-            <div className="text-[11px] text-muted-foreground">{counts.pending} still pending</div>
+            <div className="text-[11px] text-muted-foreground">{counts.pending} tickets still open</div>
           </div>
           <ChevronDown className={`w-5 h-5 shrink-0 transition-transform ${queueOpen ? "rotate-180" : ""}`} />
         </button>
@@ -275,8 +306,11 @@ export default function Approval() {
           <div className="surface-card p-8 text-sm text-muted-foreground">Choose a dataset to begin.</div>
         ) : (
           <div id="dataset-review" className="space-y-3 sm:space-y-4 min-w-0 scroll-mt-20">
-            <section className="surface-card p-4 sm:p-5">
-              <div className="space-y-4">
+            <section className="surface-card overflow-hidden">
+              <div className="border-b border-white/10 bg-white/[0.035] px-4 py-3 sm:px-5">
+                <div className="text-[10px] uppercase tracking-[0.22em] text-primary">Ticket review</div>
+              </div>
+              <div className="space-y-4 p-4 sm:p-5">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-lg sm:text-xl font-semibold leading-tight">{selected.display_name}</h2>
@@ -284,19 +318,21 @@ export default function Approval() {
                     <AvailabilityBadge status={selected.availability_status} />
                   </div>
                   <p className="text-sm text-muted-foreground mt-2">{selected.description}</p>
-                  <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                  <div className="grid grid-cols-2 gap-2 mt-3 text-xs sm:grid-cols-4">
                     <Info label="Fields" value={preview.columns.length} />
                     <Info label="Sample rows" value={preview.rows.length} />
+                    <Info label="Rows" value={selected.row_count ?? "?"} />
+                    <Info label="Columns" value={selected.column_count ?? "?"} />
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-2 break-all">{selected.source_endpoint}</p>
                 </div>
 
                 <div className="hidden lg:flex flex-wrap gap-2">
-                  <Button onClick={() => setReviewDecision("approved", true)}>
-                    <CheckCircle2 className="w-4 h-4" /> Approve & next
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setReviewDecision("approved", true)}>
+                    <CheckCircle2 className="w-4 h-4" /> Clear & next
                   </Button>
                   <Button variant="destructive" onClick={() => setReviewDecision("changes_requested", true)}>
-                    <XCircle className="w-4 h-4" /> Changes & next
+                    <XCircle className="w-4 h-4" /> Flag risk & next
                   </Button>
                   <Button variant="outline" onClick={() => setReviewDecision("pending")}>Reset</Button>
                 </div>
@@ -305,7 +341,7 @@ export default function Approval() {
                   value={currentReview.notes}
                   onChange={(event) => updateReview({ notes: event.target.value })}
                   placeholder="Optional note: missing fields, bad values, naming issues, or why it is approved."
-                  className="w-full min-h-28 rounded-md border border-input bg-background p-3 text-base sm:text-sm"
+                  className="w-full min-h-28 rounded-md border border-input bg-black/25 p-3 text-base sm:text-sm outline-none focus:ring-2 focus:ring-primary/40"
                 />
 
                 <button
@@ -334,13 +370,13 @@ export default function Approval() {
                   ))}
                 </div>
                 <div className="text-[11px] text-muted-foreground text-center">
-                  All {preview.columns.length} fields · up to {SAMPLE_LIMIT} sample records
+                  All {preview.columns.length} fields / up to {SAMPLE_LIMIT} sample records
                 </div>
               </div>
 
               {loadingPreview ? (
                 <div className="p-8 text-sm text-muted-foreground flex gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Loading preview…
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading preview...
                 </div>
               ) : error ? (
                 <div className="p-6 text-sm text-amber-300 flex gap-2">
@@ -366,10 +402,10 @@ export default function Approval() {
         <div className="lg:hidden fixed left-0 right-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-40 border-t border-white/10 bg-[hsl(var(--navy-deep))]/95 backdrop-blur p-2.5">
           <div className="grid grid-cols-2 gap-2 max-w-xl mx-auto">
             <Button className="min-h-12 text-sm" onClick={() => setReviewDecision("approved", true)}>
-              <CheckCircle2 className="w-5 h-5" /> Approve
+              <CheckCircle2 className="w-5 h-5" /> Clear
             </Button>
             <Button className="min-h-12 text-sm" variant="destructive" onClick={() => setReviewDecision("changes_requested", true)}>
-              <XCircle className="w-5 h-5" /> Needs changes
+              <XCircle className="w-5 h-5" /> Flag risk
             </Button>
           </div>
         </div>
@@ -409,13 +445,20 @@ function QueuePanel({
 }: QueuePanelProps) {
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[10px] uppercase tracking-[0.22em] text-primary">Market rail</div>
+          <div className="text-sm font-semibold">{entries.length} feeds shown</div>
+        </div>
+        <span className="rounded-sm bg-primary/15 px-2 py-1 text-[10px] font-black uppercase text-primary">Board</span>
+      </div>
       <div className="relative">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={query}
           onChange={(event) => onQuery(event.target.value)}
-          placeholder="Search datasets"
-          className="pl-9 min-h-11 text-base sm:text-sm"
+          placeholder="Search market feeds"
+          className="pl-9 min-h-11 bg-black/25 text-base sm:text-sm"
         />
       </div>
 
@@ -423,7 +466,7 @@ function QueuePanel({
         <select
           value={sport}
           onChange={(event) => onSport(event.target.value)}
-          className="min-h-11 rounded-md border border-input bg-background px-2 text-sm"
+          className="min-h-11 rounded-md border border-input bg-black/25 px-2 text-sm"
         >
           {sports.map((value) => (
             <option key={value} value={value}>{value === "all" ? "All sports" : value}</option>
@@ -432,7 +475,7 @@ function QueuePanel({
         <select
           value={decision}
           onChange={(event) => onDecision(event.target.value as Decision | "all")}
-          className="min-h-11 rounded-md border border-input bg-background px-2 text-sm"
+          className="min-h-11 rounded-md border border-input bg-black/25 px-2 text-sm"
         >
           <option value="all">All decisions</option>
           <option value="pending">Pending</option>
@@ -444,7 +487,7 @@ function QueuePanel({
       <div className="max-h-[58vh] overflow-auto space-y-2 pr-1">
         {loading ? (
           <div className="p-4 text-sm text-muted-foreground flex gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading...
           </div>
         ) : entries.length ? (
           entries.map((entry) => {
@@ -453,10 +496,10 @@ function QueuePanel({
               <button
                 key={entry.dataset_id}
                 onClick={() => onSelect(entry.dataset_id)}
-                className={`w-full min-h-20 rounded-lg border p-3 text-left ${
+                className={`w-full min-h-20 rounded-lg border p-3 text-left transition ${
                   selectedId === entry.dataset_id
-                    ? "border-primary bg-primary/10"
-                    : "border-white/10 bg-white/[0.02]"
+                    ? "border-primary bg-primary/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.25)]"
+                    : "border-white/10 bg-black/20 hover:border-white/20 hover:bg-white/[0.04]"
                 }`}
               >
                 <div className="flex justify-between gap-2">
@@ -464,10 +507,12 @@ function QueuePanel({
                   <DecisionIcon decision={review.decision} />
                 </div>
                 <div className="text-[11px] text-muted-foreground mt-1 break-all">
-                  {entry.entity} · {entry.source_endpoint}
+                  {entry.entity} - {entry.source_endpoint}
                 </div>
-                <div className="flex justify-between gap-2 text-[10px] text-muted-foreground mt-2">
-                  <span>{entry.column_count ?? "?"} fields · {entry.row_count ?? "?"} rows</span>
+                <div className="mt-2 grid grid-cols-[1fr_auto] items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="rounded-sm bg-white/[0.045] px-2 py-1">
+                    {entry.column_count ?? "?"} fields / {entry.row_count ?? "?"} rows
+                  </span>
                   <AvailabilityBadge status={entry.availability_status} />
                 </div>
               </button>
@@ -659,11 +704,34 @@ function SchemaTable({ preview }: { preview: Preview }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({
+  label,
+  value,
+  icon: Icon,
+  tone = "green",
+}: {
+  label: string;
+  value: number;
+  icon: typeof BarChart3;
+  tone?: "green" | "amber" | "red";
+}) {
+  const toneClass = {
+    green: "text-primary bg-primary/10 border-primary/25",
+    amber: "text-secondary bg-secondary/10 border-secondary/25",
+    red: "text-red-300 bg-red-500/10 border-red-500/25",
+  }[tone];
+
   return (
-    <div className="surface-card p-2.5 text-center min-w-0">
-      <div className="text-[9px] sm:text-[10px] uppercase tracking-wide text-muted-foreground truncate">{label}</div>
-      <div className="text-lg sm:text-xl font-bold mt-0.5">{value}</div>
+    <div className="surface-card min-w-0 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[9px] sm:text-[10px] uppercase tracking-wide text-muted-foreground truncate">{label}</div>
+          <div className="mt-1 text-xl sm:text-2xl font-black tabular-nums">{value}</div>
+        </div>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${toneClass}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
     </div>
   );
 }

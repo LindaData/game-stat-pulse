@@ -14,41 +14,79 @@ import { cn } from "@/lib/utils";
 import { useBasketCount } from "@/pages/ReviewBasket";
 
 const navItems = [
-  { to: "/", label: "Approve data", icon: CheckSquare2, end: true },
-  { to: "/datasets", label: "Catalog", icon: LayoutGrid },
-  { to: "/explore", label: "Explore", icon: Database },
-  { to: "/coverage", label: "Coverage", icon: LayoutGrid },
+  { to: "/", label: "Live board", icon: CheckSquare2, end: true },
+  { to: "/datasets", label: "Markets", icon: LayoutGrid },
+  { to: "/explore", label: "Data lab", icon: Database },
+  { to: "/coverage", label: "Coverage", icon: Activity },
   { to: "/dictionary", label: "Dictionary", icon: BookOpen },
-  { to: "/quality", label: "Quality", icon: ShieldCheck },
-  { to: "/basket", label: "Flagged rows", icon: ListChecks },
-  { to: "/status", label: "Status", icon: Activity },
+  { to: "/quality", label: "Risk checks", icon: ShieldCheck },
+  { to: "/basket", label: "Ticket queue", icon: ListChecks },
+  { to: "/status", label: "Feed status", icon: Activity },
 ];
 
 const mobileItems = [
-  { to: "/", label: "Approve", icon: CheckSquare2, end: true },
-  { to: "/datasets", label: "Catalog", icon: LayoutGrid },
-  { to: "/explore", label: "Explore", icon: Database },
-  { to: "/basket", label: "Flags", icon: ListChecks },
+  { to: "/", label: "Board", icon: CheckSquare2, end: true },
+  { to: "/datasets", label: "Markets", icon: LayoutGrid },
+  { to: "/explore", label: "Lab", icon: Database },
+  { to: "/basket", label: "Tickets", icon: ListChecks },
   { to: "/status", label: "Status", icon: Activity },
+];
+
+const sportRail = [
+  ["NFL", "-108"],
+  ["NBA", "+126"],
+  ["MLB", "-115"],
+  ["NHL", "+102"],
+  ["Soccer", "O/U"],
+  ["Props", "+EV"],
+  ["Futures", "24h"],
+  ["Live", "ON"],
+];
+
+const tickerItems = [
+  "API-Football markets gated by Actions secret",
+  "Public review mode: limited samples",
+  "Models locked until source approval",
+  "Odds feeds routed through data-lake workflow",
 ];
 
 export default function Layout() {
   const basketCount = useBasketCount();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="sticky top-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur border-b border-white/10 pt-[env(safe-area-inset-top)]">
-        <div className="max-w-[1600px] mx-auto px-3 sm:px-4 h-14 flex items-center justify-between gap-4">
-          <NavLink to="/" className="flex items-center gap-2 min-w-0" aria-label="Game Stat Pulse approval workspace">
-            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold shrink-0">
-              G
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[hsl(var(--navy-deep))]/95 backdrop-blur-xl pt-[env(safe-area-inset-top)]">
+        <div className="border-b border-white/10 bg-black/35">
+          <div className="max-w-[1720px] mx-auto px-3 sm:px-4 min-h-9 flex items-center gap-3 overflow-hidden">
+            <span className="shrink-0 rounded-sm bg-red-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
+              Live
+            </span>
+            <div className="flex min-w-0 flex-1 items-center gap-6 overflow-hidden text-[11px] uppercase tracking-wide text-muted-foreground">
+              {tickerItems.map((item) => (
+                <span key={item} className="shrink-0 whitespace-nowrap">
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-[1720px] mx-auto px-3 sm:px-4 min-h-16 flex items-center justify-between gap-4">
+          <NavLink to="/" className="flex items-center gap-3 min-w-0" aria-label="Game Stat Pulse market review desk">
+            <div className="w-10 h-10 rounded-md bg-primary text-primary-foreground flex items-center justify-center text-sm font-black shadow-[0_0_32px_hsl(var(--primary)/0.35)] shrink-0">
+              GSP
             </div>
             <div className="leading-tight min-w-0">
-              <div className="text-sm font-semibold text-foreground truncate">Game Stat Pulse</div>
-              <div className="hidden min-[360px]:block text-[10px] uppercase tracking-wider text-primary truncate">Data approval first</div>
+              <div className="text-sm sm:text-base font-black uppercase tracking-wide text-foreground truncate">
+                Game Stat Pulse
+              </div>
+              <div className="hidden min-[390px]:block text-[10px] uppercase tracking-[0.24em] text-primary truncate">
+                Sportsbook Data Desk
+              </div>
             </div>
           </NavLink>
-          <nav className="hidden lg:flex items-center gap-1 overflow-x-auto" aria-label="Primary navigation">
+
+          <nav className="no-scrollbar hidden lg:flex items-center gap-1 overflow-x-auto" aria-label="Primary navigation">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -58,17 +96,17 @@ export default function Layout() {
                   end={item.end}
                   className={({ isActive }) =>
                     cn(
-                      "px-2.5 py-2 rounded-md text-sm font-medium transition flex items-center gap-1.5 whitespace-nowrap",
+                      "px-3 py-2 rounded-md text-sm font-semibold transition flex items-center gap-1.5 whitespace-nowrap",
                       isActive
-                        ? "bg-primary/15 text-primary"
-                        : "text-foreground/70 hover:text-foreground hover:bg-white/5",
+                        ? "bg-primary text-primary-foreground"
+                        : "text-foreground/70 hover:text-foreground hover:bg-white/[0.07]",
                     )
                   }
                 >
                   <Icon className="w-4 h-4" />
                   {item.label}
                   {item.to === "/basket" && basketCount > 0 && (
-                    <span className="text-[10px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                    <span className="text-[10px] bg-secondary text-secondary-foreground rounded-sm px-1.5 py-0.5 min-w-[18px] text-center">
                       {basketCount}
                     </span>
                   )}
@@ -78,24 +116,43 @@ export default function Layout() {
             <span
               aria-disabled="true"
               title="Models remain locked until the data review is approved"
-              className="px-2.5 py-2 rounded-md text-sm font-medium text-foreground/30 flex items-center gap-1.5 cursor-not-allowed whitespace-nowrap"
+              className="hidden 2xl:flex px-3 py-2 rounded-md text-sm font-semibold text-foreground/35 items-center gap-1.5 cursor-not-allowed whitespace-nowrap"
             >
               <Lock className="w-3.5 h-3.5" />
               <FlaskConical className="w-4 h-4" /> Models
             </span>
           </nav>
         </div>
+
+        <div className="border-t border-white/10 bg-white/[0.035]">
+          <div className="no-scrollbar max-w-[1720px] mx-auto px-3 sm:px-4 overflow-x-auto">
+            <div className="flex min-h-11 items-center gap-2">
+              {sportRail.map(([label, price]) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="min-h-8 shrink-0 rounded-md border border-white/10 bg-black/25 px-3 text-left text-xs font-semibold text-foreground/85 hover:border-primary/50 hover:text-primary"
+                >
+                  <span className="mr-2 uppercase">{label}</span>
+                  <span className={price.startsWith("+") || price === "ON" ? "text-primary" : "text-secondary"}>
+                    {price}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </header>
 
-      <main className="flex-1 max-w-[1600px] w-full mx-auto px-3 sm:px-4 py-3 sm:py-5 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-10">
+      <main className="flex-1 max-w-[1720px] w-full mx-auto px-3 sm:px-4 py-3 sm:py-5 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-10">
         <Outlet />
       </main>
 
       <footer className="hidden lg:block border-t border-white/10 py-4 text-center text-xs text-muted-foreground">
-        Review and approve source data before model development begins.
+        Sports betting research workspace. Review source feeds before modeling, simulation, or staking logic.
       </footer>
 
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur border-t border-white/10 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
         <ul className="grid grid-cols-5">
           {mobileItems.map((item) => {
             const Icon = item.icon;
@@ -106,7 +163,7 @@ export default function Layout() {
                   end={item.end}
                   className={({ isActive }) =>
                     cn(
-                      "min-h-[4.25rem] flex flex-col items-center justify-center py-2 gap-0.5 text-[11px] relative active:bg-white/5",
+                      "min-h-[4.25rem] flex flex-col items-center justify-center py-2 gap-0.5 text-[11px] font-semibold relative active:bg-white/5",
                       isActive ? "text-primary" : "text-foreground/60",
                     )
                   }
@@ -114,7 +171,7 @@ export default function Layout() {
                   <Icon className="w-5 h-5" />
                   {item.label}
                   {item.to === "/basket" && basketCount > 0 && (
-                    <span className="absolute top-1 right-3 text-[9px] bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[16px] text-center">
+                    <span className="absolute top-1 right-3 text-[9px] bg-secondary text-secondary-foreground rounded-sm px-1.5 py-0.5 min-w-[16px] text-center">
                       {basketCount}
                     </span>
                   )}

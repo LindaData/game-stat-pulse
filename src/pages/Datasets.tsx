@@ -124,12 +124,12 @@ export default function Datasets() {
 
   return (
     <div className="space-y-6">
-      <header className="surface-card p-5 md:p-6 bg-gradient-to-br from-[hsl(var(--navy-light))] to-[hsl(var(--navy-deep))] border-white/10">
-        <div className="text-[11px] uppercase tracking-widest text-primary mb-2">Game Stat Pulse</div>
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Explore datasets</h1>
+      <header className="surface-card sportsbook-glow p-5 md:p-6 bg-[linear-gradient(135deg,hsl(var(--navy-light)),hsl(var(--navy-deep)))] border-white/10">
+        <div className="text-[11px] uppercase tracking-[0.24em] text-primary mb-2">Market catalog</div>
+        <h1 className="text-2xl md:text-3xl font-black text-foreground">Browse betting-model source feeds</h1>
         <p className="text-sm text-foreground/70 mt-2 max-w-2xl">
-          Raw and normalized sports-data snapshots for research and domain review. Parquet is the primary analytical
-          format; sample and filtered CSV downloads are available for Excel, Google Sheets, and general review.
+          Raw and normalized sports-data snapshots for market review, feature engineering, and future model work.
+          Parquet stays the analytical format; CSV and JSON samples are available for quick desk checks.
         </p>
         <p className="text-[11px] text-muted-foreground mt-3">
           Catalog source:{" "}
@@ -179,10 +179,10 @@ export default function Datasets() {
           {filtered.map((e) => {
             const dl = downloading[e.dataset_id];
             return (
-              <article key={e.dataset_id} className="surface-card p-4 flex flex-col">
+              <article key={e.dataset_id} className="surface-card p-4 flex flex-col hover:border-primary/30 transition">
                 <header className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="font-semibold text-card-foreground truncate">{e.display_name}</h3>
+                    <h3 className="font-black text-card-foreground truncate">{e.display_name}</h3>
                     <p className="text-[11px] text-muted-foreground">
                       {e.sport} · {entityLabel(e.entity)}
                       {e.granularity ? ` · ${e.granularity}` : ""}
@@ -207,7 +207,7 @@ export default function Datasets() {
                     to={`/explore?dataset=${e.dataset_id}`}
                     className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground text-sm font-medium px-3"
                   >
-                    <Eye className="w-4 h-4" /> Preview data
+                    <Eye className="w-4 h-4" /> Open board
                   </Link>
                   <Button
                     variant="outline"
