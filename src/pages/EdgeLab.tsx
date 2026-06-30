@@ -12,6 +12,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { downloadCsv } from "@/lib/download";
+import {
+  calculateEdge,
+  decisionLabel,
+  formatAmericanOdds,
+  formatMoney as money,
+  formatPercent as pct,
+  isValidEdgeInput,
+} from "@/lib/edgeMath";
 
 const STORAGE_KEY = "gsp:edge-lab:v1";
 
@@ -25,20 +33,6 @@ type EdgeRecord = {
   bankroll: number;
   capPct: number;
   createdAt: string;
-};
-
-type EdgeMath = {
-  decimalOdds: number;
-  impliedProbability: number;
-  fairAmericanOdds: number;
-  edgePct: number;
-  evPerDollar: number;
-  evPerHundred: number;
-  kellyPct: number;
-  halfKellyPct: number;
-  cappedStake: number;
-  cappedStakePct: number;
-  decision: "positive" | "thin" | "negative";
 };
 
 export default function EdgeLab() {
@@ -70,7 +64,7 @@ export default function EdgeLab() {
   );
 
   const result = useMemo(() => {
-    if (!isValidInput(parsed.americanOdds, parsed.modelProbability, parsed.bankroll, parsed.capPct)) return null;
+    if (!isValidEdgeInput(parsed.americanOdds, parsed.modelProbability, parsed.bankroll, parsed.capPct)) return null;
     return calculateEdge(parsed.americanOdds, parsed.modelProbability, parsed.bankroll, parsed.capPct);
   }, [parsed]);
 
@@ -109,10 +103,10 @@ export default function EdgeLab() {
           label: record.label,
           sport: record.sport,
           market: record.market,
-          american_odds: record.americanOdds,
+          american_odds: formatAmericanOdds(record.americanOdds),
           model_probability_pct: pct(record.modelProbability),
           implied_probability_pct: pct(math.impliedProbability),
-          fair_american_odds: Math.round(math.fairAmericanOdds),
+          fair_american_odds: formatAmericanOdds(math.fairAmericanOdds),
           edge_pct: pct(math.edgePct / 100),
           ev_per_100: money(math.evPerHundred),
           kelly_pct: pct(math.kellyPct / 100),
@@ -204,7 +198,7 @@ export default function EdgeLab() {
                 <Output label="Decimal odds" value={result.decimalOdds.toFixed(3)} />
                 <Output label="Implied probability" value={pct(result.impliedProbability)} />
                 <Output label="Model probability" value={pct(parsed.modelProbability)} />
-                <Output label="Fair American odds" value={String(Math.round(result.fairAmericanOdds))} />
+                <Output label="Fair American odds" value={formatAmericanOdds(result.fairAmericanOdds)} />
                 <Output label="EV per $1" value={money(result.evPerDollar)} tone={result.evPerDollar > 0 ? "green" : "red"} />
                 <Output label="EV per $100" value={money(result.evPerHundred)} tone={result.evPerHundred > 0 ? "green" : "red"} />
                 <Output label="Full Kelly" value={`${result.kellyPct.toFixed(2)}%`} tone="amber" />
@@ -260,7 +254,7 @@ export default function EdgeLab() {
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold">{record.label}</div>
                           <div className="mt-1 text-[11px] text-muted-foreground">
-                            {record.sport} / {record.market} / {record.americanOdds > 0 ? "+" : ""}{record.americanOdds}
+                            {record.sport} / {record.market} / {formatAmericanOdds(record.americanOdds)}
                           </div>
                         </div>
                         <span className={math.evPerHundred > 0 ? "text-sm font-black text-primary" : "text-sm font-black text-red-300"}>
@@ -327,57 +321,6 @@ function MetricCell({ label, value, tone = "green" }: { label: string; value: st
   );
 }
 
-function calculateEdge(americanOdds: number, modelProbability: number, bankroll: number, capPct: number): EdgeMath {
-  const decimalOdds = americanToDecimal(americanOdds);
-  const impliedProbability = 1 / decimalOdds;
-  const b = decimalOdds - 1;
-  const q = 1 - modelProbability;
-  const evPerDollar = modelProbability * b - q;
-  const kellyRaw = b > 0 ? (b * modelProbability - q) / b : 0;
-  const kellyPct = Math.max(0, kellyRaw) * 100;
-  const halfKellyPct = kellyPct / 2;
-  const cappedStakePct = Math.min(halfKellyPct, Math.max(0, capPct));
-  const edgePct = (modelProbability - impliedProbability) * 100;
-  return {
-    decimalOdds,
-    impliedProbability,
-    fairAmericanOdds: probabilityToAmerican(modelProbability),
-    edgePct,
-    evPerDollar,
-    evPerHundred: evPerDollar * 100,
-    kellyPct,
-    halfKellyPct,
-    cappedStake: bankroll * (cappedStakePct / 100),
-    cappedStakePct,
-    decision: evPerDollar > 0.025 ? "positive" : evPerDollar > 0 ? "thin" : "negative",
-  };
-}
-
-function americanToDecimal(odds: number) {
-  if (odds > 0) return 1 + odds / 100;
-  return 1 + 100 / Math.abs(odds);
-}
-
-function probabilityToAmerican(probability: number) {
-  if (probability <= 0 || probability >= 1) return 0;
-  if (probability >= 0.5) return -(100 * probability) / (1 - probability);
-  return (100 * (1 - probability)) / probability;
-}
-
-function isValidInput(americanOdds: number, modelProbability: number, bankroll: number, capPct: number) {
-  return (
-    Number.isFinite(americanOdds) &&
-    americanOdds !== 0 &&
-    Number.isFinite(modelProbability) &&
-    modelProbability > 0 &&
-    modelProbability < 1 &&
-    Number.isFinite(bankroll) &&
-    bankroll > 0 &&
-    Number.isFinite(capPct) &&
-    capPct >= 0
-  );
-}
-
 function readHistory(): EdgeRecord[] {
   if (typeof window === "undefined") return [];
   try {
@@ -386,16 +329,4 @@ function readHistory(): EdgeRecord[] {
   } catch {
     return [];
   }
-}
-
-function decisionLabel(decision: EdgeMath["decision"]) {
-  return decision === "positive" ? "Positive EV" : decision === "thin" ? "Thin edge" : "No edge";
-}
-
-function pct(value: number) {
-  return `${(value * 100).toFixed(2)}%`;
-}
-
-function money(value: number) {
-  return `$${value.toFixed(2)}`;
 }

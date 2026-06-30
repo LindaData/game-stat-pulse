@@ -4,6 +4,7 @@ import {
   BookOpen,
   Calculator,
   CheckSquare2,
+  ClipboardList,
   Database,
   FlaskConical,
   LayoutGrid,
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/", label: "Live board", icon: CheckSquare2, end: true },
   { to: "/signals", label: "Signals", icon: TrendingUp },
   { to: "/edge", label: "Edge lab", icon: Calculator },
+  { to: "/portfolio", label: "Portfolio", icon: ClipboardList },
   { to: "/datasets", label: "Markets", icon: LayoutGrid },
   { to: "/explore", label: "Data lab", icon: Database },
   { to: "/coverage", label: "Coverage", icon: Activity },
@@ -34,6 +36,7 @@ const mobileItems = [
   { to: "/", label: "Board", icon: CheckSquare2, end: true },
   { to: "/desk", label: "Desk", icon: Target },
   { to: "/signals", label: "Signals", icon: TrendingUp },
+  { to: "/portfolio", label: "Card", icon: ClipboardList },
   { to: "/edge", label: "Edge", icon: Calculator },
   { to: "/basket", label: "Tickets", icon: ListChecks },
 ];
@@ -159,7 +162,7 @@ export default function Layout() {
       </footer>
 
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-6">
           {mobileItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -169,7 +172,7 @@ export default function Layout() {
                   end={item.end}
                   className={({ isActive }) =>
                     cn(
-                      "min-h-[4.25rem] flex flex-col items-center justify-center py-2 gap-0.5 text-[11px] font-semibold relative active:bg-white/5",
+                      "min-h-[4.25rem] flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-semibold relative active:bg-white/5",
                       isActive ? "text-primary" : "text-foreground/60",
                     )
                   }

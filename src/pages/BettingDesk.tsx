@@ -66,6 +66,12 @@ const WORKFLOW = [
     action: "Open edge lab",
   },
   {
+    title: "Build a card",
+    body: "Batch rank model probabilities against market prices, then export the positive-EV portfolio for review.",
+    href: "/portfolio",
+    action: "Open portfolio lab",
+  },
+  {
     title: "Review priority feeds",
     body: "Clear or flag market, availability, and fixture feeds before trusting downstream features.",
     href: "/approval",
