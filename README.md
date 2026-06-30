@@ -107,5 +107,5 @@ Never place the real key in `.env` files that are committed, source code, fronte
 
 - Pushes to `main` run `.github/workflows/deploy.yml`.
 - The workflow deploys the app to GitHub Pages. On non-PR builds, it also publishes limited review samples when the data-generation step succeeds.
-- `.github/workflows/publish-data-lake.yml` runs daily, on manual dispatch, and when data configs/scripts change on `main`.
+- `.github/workflows/publish-data-lake.yml` runs daily, on manual dispatch, and after a successful `main` Pages deployment.
 - The data-lake workflow uses `API_FOOTBALL_KEY` from Actions secrets, uploads a `modeling-data-lake-build` artifact for model work, and can also publish the complete generated lake to R2 when the optional secrets are configured.
