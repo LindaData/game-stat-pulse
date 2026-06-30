@@ -1,9 +1,10 @@
 defaults:
   league_id: 39
   team_id: 40
+  opponent_team_id: 42
   country: England
   sample_row_limit: 25
-  request_delay_seconds: 0.25
+  request_delay_seconds: 6.5
 
 endpoints:
   - id: football_timezone

@@ -59,6 +59,8 @@ Optional R2 secrets:
 
 The registry is configuration-driven, so additional endpoints can be added without changing the frontend. Endpoint failures or plan restrictions do not stop the full workflow; affected catalog entries are marked degraded or missing.
 
+The API-Football pull is paced from `request_delay_seconds` in `config/api_football_endpoints.yml` so GitHub Actions stays under provider rate limits while using the server-side `API_FOOTBALL_KEY`.
+
 ## Pages
 
 | Route | Purpose |

@@ -29,8 +29,10 @@ CATALOG = BUILD / "catalog" / "catalog.json"
 API_BASE = os.environ.get("API_FOOTBALL_BASE_URL", "https://v3.football.api-sports.io").rstrip("/")
 API_KEY = os.environ.get("API_FOOTBALL_KEY", "").strip()
 PUBLIC_BASE = os.environ.get("R2_PUBLIC_BASE_URL", "").rstrip("/")
+REQUEST_DELAY_SECONDS = float(os.environ.get("API_FOOTBALL_REQUEST_DELAY_SECONDS", "6.5"))
 SCHEMA_VERSION = "api-football-v1"
 NOW = datetime.now(timezone.utc)
+LAST_REQUEST_AT = 0.0
 
 
 class SafeFormat(dict[str, Any]):
@@ -51,8 +53,19 @@ def ensure_dir(path: Path) -> Path:
     return path
 
 
+def wait_for_rate_limit() -> None:
+    global LAST_REQUEST_AT
+    if REQUEST_DELAY_SECONDS <= 0:
+        return
+    elapsed = time.monotonic() - LAST_REQUEST_AT
+    if LAST_REQUEST_AT and elapsed < REQUEST_DELAY_SECONDS:
+        time.sleep(REQUEST_DELAY_SECONDS - elapsed)
+    LAST_REQUEST_AT = time.monotonic()
+
+
 def api_get(endpoint: str, params: dict[str, Any] | None = None) -> tuple[dict[str, Any], dict[str, str]]:
     url = f"{API_BASE}/{endpoint.lstrip('/')}"
+    wait_for_rate_limit()
     response = requests.get(
         url,
         headers={"x-apisports-key": API_KEY},
@@ -311,6 +324,7 @@ def catalog_entry(
 
 
 def main() -> int:
+    global REQUEST_DELAY_SECONDS
     if not API_KEY:
         print("API_FOOTBALL_KEY is not set; skipping API-Football samples.")
         return 0
@@ -320,6 +334,7 @@ def main() -> int:
 
     config = yaml.safe_load(CONFIG.read_text(encoding="utf-8")) or {}
     defaults = config.get("defaults", {})
+    REQUEST_DELAY_SECONDS = float(defaults.get("request_delay_seconds", REQUEST_DELAY_SECONDS))
     try:
         context = resolve_context(defaults)
     except Exception as exc:
@@ -368,7 +383,6 @@ def main() -> int:
                 error,
             )
         )
-        time.sleep(float(defaults.get("request_delay_seconds", 0.2)))
 
     append_catalog(entries)
     print(f"Added {len(entries)} API-Football endpoint samples to {CATALOG}")
