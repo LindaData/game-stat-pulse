@@ -1,9 +1,8 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Trash2, Download, FileJson } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  basketCount,
   clearBasket,
   listBasket,
   removeItem,
@@ -22,22 +21,6 @@ const STATUS_OPTIONS: { value: ReviewStatus; label: string }[] = [
   { value: "possible_data_issue", label: "Possible data issue" },
   { value: "important_for_modeling", label: "Important for modeling" },
 ];
-
-export function useBasketCount(): number {
-  return useSyncExternalStore(
-    (cb) => subscribeBasket(cb),
-    () => __basketCountCache,
-    () => __basketCountCache,
-  );
-}
-let __basketCountCache = 0;
-// Keep cache fresh
-basketCount().then((n) => (__basketCountCache = n));
-subscribeBasket(() => {
-  basketCount().then((n) => {
-    __basketCountCache = n;
-  });
-});
 
 export default function ReviewBasket() {
   const [items, setItems] = useState<BasketItem[]>([]);

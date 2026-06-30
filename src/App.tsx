@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -6,17 +7,19 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataProvider } from "@/context/DataContext";
 import Layout from "@/components/Layout";
 import GlobalReviewWorkspace from "@/components/GlobalReviewWorkspace";
-import Approval from "./pages/Approval";
-import Datasets from "./pages/Datasets";
-import Coverage from "./pages/Coverage";
-import Dictionary from "./pages/Dictionary";
-import Quality from "./pages/Quality";
-import ReviewBasket from "./pages/ReviewBasket";
-import NBA from "./pages/NBA";
-import MLB from "./pages/MLB";
-import Status from "./pages/Status";
-import RawDataLab from "./pages/RawDataLab";
-import NotFound from "./pages/NotFound";
+
+const Approval = lazy(() => import("./pages/Approval"));
+const BettingDesk = lazy(() => import("./pages/BettingDesk"));
+const Datasets = lazy(() => import("./pages/Datasets"));
+const Coverage = lazy(() => import("./pages/Coverage"));
+const Dictionary = lazy(() => import("./pages/Dictionary"));
+const Quality = lazy(() => import("./pages/Quality"));
+const ReviewBasket = lazy(() => import("./pages/ReviewBasket"));
+const NBA = lazy(() => import("./pages/NBA"));
+const MLB = lazy(() => import("./pages/MLB"));
+const Status = lazy(() => import("./pages/Status"));
+const RawDataLab = lazy(() => import("./pages/RawDataLab"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -28,23 +31,26 @@ const App = () => (
       <Sonner />
       <DataProvider>
         <BrowserRouter basename={basename || "/"}>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Approval />} />
-              <Route path="/approval" element={<Approval />} />
-              <Route path="/datasets" element={<Datasets />} />
-              <Route path="/coverage" element={<Coverage />} />
-              <Route path="/dictionary" element={<Dictionary />} />
-              <Route path="/quality" element={<Quality />} />
-              <Route path="/basket" element={<ReviewBasket />} />
-              <Route path="/explore" element={<RawDataLab />} />
-              <Route path="/raw" element={<Navigate to="/explore" replace />} />
-              <Route path="/nba" element={<NBA />} />
-              <Route path="/mlb" element={<MLB />} />
-              <Route path="/status" element={<Status />} />
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Approval />} />
+                <Route path="/desk" element={<BettingDesk />} />
+                <Route path="/approval" element={<Approval />} />
+                <Route path="/datasets" element={<Datasets />} />
+                <Route path="/coverage" element={<Coverage />} />
+                <Route path="/dictionary" element={<Dictionary />} />
+                <Route path="/quality" element={<Quality />} />
+                <Route path="/basket" element={<ReviewBasket />} />
+                <Route path="/explore" element={<RawDataLab />} />
+                <Route path="/raw" element={<Navigate to="/explore" replace />} />
+                <Route path="/nba" element={<NBA />} />
+                <Route path="/mlb" element={<MLB />} />
+                <Route path="/status" element={<Status />} />
+                <Route path="*" element={<NotFound />} />
+              </Route>
+            </Routes>
+          </Suspense>
           <GlobalReviewWorkspace />
         </BrowserRouter>
       </DataProvider>
@@ -53,3 +59,13 @@ const App = () => (
 );
 
 export default App;
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen bg-background p-4 text-foreground">
+      <div className="surface-card mx-auto mt-8 max-w-md p-4 text-sm text-muted-foreground">
+        Loading desk...
+      </div>
+    </div>
+  );
+}

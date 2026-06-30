@@ -9,11 +9,13 @@ import {
   ListChecks,
   Lock,
   ShieldCheck,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useBasketCount } from "@/pages/ReviewBasket";
+import { useBasketCount } from "@/hooks/use-basket-count";
 
 const navItems = [
+  { to: "/desk", label: "My desk", icon: Target },
   { to: "/", label: "Live board", icon: CheckSquare2, end: true },
   { to: "/datasets", label: "Markets", icon: LayoutGrid },
   { to: "/explore", label: "Data lab", icon: Database },
@@ -26,10 +28,10 @@ const navItems = [
 
 const mobileItems = [
   { to: "/", label: "Board", icon: CheckSquare2, end: true },
+  { to: "/desk", label: "Desk", icon: Target },
   { to: "/datasets", label: "Markets", icon: LayoutGrid },
   { to: "/explore", label: "Lab", icon: Database },
   { to: "/basket", label: "Tickets", icon: ListChecks },
-  { to: "/status", label: "Status", icon: Activity },
 ];
 
 const sportRail = [
