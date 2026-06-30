@@ -216,8 +216,11 @@ def nested_ids(payload: dict[str, Any], path: tuple[str, ...]) -> list[int]:
 def resolve_context(defaults: dict[str, Any]) -> dict[str, Any]:
     context = dict(defaults)
     league_id = int(context.get("league_id", 39))
-    leagues_payload, _ = api_get("leagues", {"id": league_id})
-    context["season"] = latest_season(leagues_payload)
+    if context.get("season") is None:
+        leagues_payload, _ = api_get("leagues", {"id": league_id})
+        context["season"] = latest_season(leagues_payload)
+    else:
+        context["season"] = int(context["season"])
 
     teams_payload, _ = api_get("teams", {"league": league_id, "season": context["season"]})
     team_ids = nested_ids(teams_payload, ("team", "id"))

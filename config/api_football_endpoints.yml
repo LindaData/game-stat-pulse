@@ -1,5 +1,6 @@
 defaults:
   league_id: 39
+  season: 2024
   team_id: 40
   opponent_team_id: 42
   country: England

@@ -61,6 +61,8 @@ The registry is configuration-driven, so additional endpoints can be added witho
 
 The API-Football pull is paced from `request_delay_seconds` in `config/api_football_endpoints.yml` so GitHub Actions stays under provider rate limits while using the server-side `API_FOOTBALL_KEY`.
 
+The default API-Football review season is pinned to `2024` because the current API plan reports that some football endpoints are only available for 2022-2024. This can be moved forward when the key has current-season access.
+
 ## Pages
 
 | Route | Purpose |
