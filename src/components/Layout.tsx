@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import {
   Activity,
   BookOpen,
+  Calculator,
   CheckSquare2,
   Database,
   FlaskConical,
@@ -19,6 +20,7 @@ const navItems = [
   { to: "/desk", label: "My desk", icon: Target },
   { to: "/", label: "Live board", icon: CheckSquare2, end: true },
   { to: "/signals", label: "Signals", icon: TrendingUp },
+  { to: "/edge", label: "Edge lab", icon: Calculator },
   { to: "/datasets", label: "Markets", icon: LayoutGrid },
   { to: "/explore", label: "Data lab", icon: Database },
   { to: "/coverage", label: "Coverage", icon: Activity },
@@ -32,7 +34,7 @@ const mobileItems = [
   { to: "/", label: "Board", icon: CheckSquare2, end: true },
   { to: "/desk", label: "Desk", icon: Target },
   { to: "/signals", label: "Signals", icon: TrendingUp },
-  { to: "/explore", label: "Lab", icon: Database },
+  { to: "/edge", label: "Edge", icon: Calculator },
   { to: "/basket", label: "Tickets", icon: ListChecks },
 ];
 

@@ -11,6 +11,7 @@ import GlobalReviewWorkspace from "@/components/GlobalReviewWorkspace";
 const Approval = lazy(() => import("./pages/Approval"));
 const BettingDesk = lazy(() => import("./pages/BettingDesk"));
 const Datasets = lazy(() => import("./pages/Datasets"));
+const EdgeLab = lazy(() => import("./pages/EdgeLab"));
 const Coverage = lazy(() => import("./pages/Coverage"));
 const Dictionary = lazy(() => import("./pages/Dictionary"));
 const Quality = lazy(() => import("./pages/Quality"));
@@ -39,6 +40,7 @@ const App = () => (
                 <Route path="/desk" element={<BettingDesk />} />
                 <Route path="/approval" element={<Approval />} />
                 <Route path="/datasets" element={<Datasets />} />
+                <Route path="/edge" element={<EdgeLab />} />
                 <Route path="/signals" element={<Signals />} />
                 <Route path="/coverage" element={<Coverage />} />
                 <Route path="/dictionary" element={<Dictionary />} />

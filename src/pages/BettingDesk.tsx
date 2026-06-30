@@ -60,6 +60,12 @@ const WORKFLOW = [
     action: "Open signals",
   },
   {
+    title: "Price a line",
+    body: "Enter your model probability and the sportsbook odds to calculate implied probability, EV, and capped sizing.",
+    href: "/edge",
+    action: "Open edge lab",
+  },
+  {
     title: "Review priority feeds",
     body: "Clear or flag market, availability, and fixture feeds before trusting downstream features.",
     href: "/approval",
