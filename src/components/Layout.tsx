@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import {
   Activity,
+  Banknote,
   BookOpen,
   Calculator,
   CheckSquare2,
@@ -23,6 +24,7 @@ const navItems = [
   { to: "/edge", label: "Edge lab", icon: Calculator },
   { to: "/portfolio", label: "Portfolio", icon: ClipboardList },
   { to: "/model", label: "Model audit", icon: FlaskConical },
+  { to: "/bankroll", label: "Bankroll", icon: Banknote },
   { to: "/datasets", label: "Markets", icon: LayoutGrid },
   { to: "/explore", label: "Data lab", icon: Database },
   { to: "/coverage", label: "Coverage", icon: Activity },
@@ -38,7 +40,7 @@ const mobileItems = [
   { to: "/signals", label: "Signals", icon: TrendingUp },
   { to: "/portfolio", label: "Card", icon: ClipboardList },
   { to: "/model", label: "Audit", icon: FlaskConical },
-  { to: "/edge", label: "Edge", icon: Calculator },
+  { to: "/bankroll", label: "Bank", icon: Banknote },
 ];
 
 const sportRail = [

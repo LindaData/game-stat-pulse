@@ -78,6 +78,12 @@ const WORKFLOW = [
     action: "Open model audit",
   },
   {
+    title: "Track bankroll",
+    body: "Log open and settled wagers to monitor exposure, realized P&L, ROI, CLV, and current bankroll.",
+    href: "/bankroll",
+    action: "Open bankroll ledger",
+  },
+  {
     title: "Review priority feeds",
     body: "Clear or flag market, availability, and fixture feeds before trusting downstream features.",
     href: "/approval",
