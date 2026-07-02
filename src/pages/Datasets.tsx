@@ -125,11 +125,11 @@ export default function Datasets() {
   return (
     <div className="space-y-6">
       <header className="surface-card sportsbook-glow p-5 md:p-6 bg-[linear-gradient(135deg,hsl(var(--navy-light)),hsl(var(--navy-deep)))] border-white/10">
-        <div className="text-[11px] uppercase tracking-[0.24em] text-primary mb-2">Market catalog</div>
-        <h1 className="text-2xl md:text-3xl font-black text-foreground">Browse betting-model source feeds</h1>
+        <div className="text-[11px] uppercase tracking-[0.24em] text-primary mb-2">Dataset catalog</div>
+        <h1 className="text-2xl md:text-3xl font-black text-foreground">Browse source feeds and research inputs</h1>
         <p className="text-sm text-foreground/70 mt-2 max-w-2xl">
-          Raw and normalized sports-data snapshots for market review, feature engineering, and future model work.
-          Parquet stays the analytical format; CSV and JSON samples are available for quick desk checks.
+          Raw and normalized sports-data snapshots for feed review, feature engineering, and downstream model work.
+          Parquet remains the analytical format; CSV and JSON samples are available for fast inspection.
         </p>
         <p className="text-[11px] text-muted-foreground mt-3">
           Catalog source:{" "}

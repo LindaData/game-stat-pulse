@@ -18,47 +18,47 @@ import { cn } from "@/lib/utils";
 import { useBasketCount } from "@/hooks/use-basket-count";
 
 const navItems = [
-  { to: "/desk", label: "My desk", icon: Target },
-  { to: "/", label: "Live board", icon: CheckSquare2, end: true },
+  { to: "/desk", label: "Research desk", icon: Target },
+  { to: "/", label: "Review board", icon: CheckSquare2, end: true },
   { to: "/signals", label: "Signals", icon: TrendingUp },
-  { to: "/edge", label: "Edge lab", icon: Calculator },
-  { to: "/portfolio", label: "Portfolio", icon: ClipboardList },
+  { to: "/edge", label: "Pricing", icon: Calculator },
+  { to: "/portfolio", label: "Scenarios", icon: ClipboardList },
   { to: "/model", label: "Model audit", icon: FlaskConical },
-  { to: "/bankroll", label: "Bankroll", icon: Banknote },
-  { to: "/datasets", label: "Markets", icon: LayoutGrid },
-  { to: "/explore", label: "Data lab", icon: Database },
+  { to: "/bankroll", label: "Ledger", icon: Banknote },
+  { to: "/datasets", label: "Datasets", icon: LayoutGrid },
+  { to: "/explore", label: "Query lab", icon: Database },
   { to: "/coverage", label: "Coverage", icon: Activity },
   { to: "/dictionary", label: "Dictionary", icon: BookOpen },
-  { to: "/quality", label: "Risk checks", icon: ShieldCheck },
-  { to: "/basket", label: "Ticket queue", icon: ListChecks },
+  { to: "/quality", label: "QA checks", icon: ShieldCheck },
+  { to: "/basket", label: "Review queue", icon: ListChecks },
   { to: "/status", label: "Feed status", icon: Activity },
 ];
 
 const mobileItems = [
-  { to: "/", label: "Board", icon: CheckSquare2, end: true },
+  { to: "/", label: "Review", icon: CheckSquare2, end: true },
   { to: "/desk", label: "Desk", icon: Target },
   { to: "/signals", label: "Signals", icon: TrendingUp },
-  { to: "/portfolio", label: "Card", icon: ClipboardList },
+  { to: "/edge", label: "Price", icon: Calculator },
   { to: "/model", label: "Audit", icon: FlaskConical },
-  { to: "/bankroll", label: "Bank", icon: Banknote },
+  { to: "/bankroll", label: "Ledger", icon: Banknote },
 ];
 
-const sportRail = [
-  ["NFL", "-108"],
-  ["NBA", "+126"],
-  ["MLB", "-115"],
-  ["NHL", "+102"],
-  ["Soccer", "O/U"],
-  ["Props", "+EV"],
-  ["Futures", "24h"],
-  ["Live", "ON"],
+const workspaceRail = [
+  ["Fixtures", "Context"],
+  ["Odds", "Pricing"],
+  ["Lineups", "Availability"],
+  ["Players", "Form"],
+  ["Ledger", "Tracking"],
+  ["Audit", "Validation"],
+  ["Coverage", "API"],
+  ["Status", "Health"],
 ];
 
 const tickerItems = [
-  "API-Football markets gated by Actions secret",
-  "Public review mode: limited samples",
-  "Model audit ready for settled prediction logs",
-  "Odds feeds routed through data-lake workflow",
+  "API-Football feeds load when GitHub Actions secrets are present",
+  "Published review site uses fallback samples until the data lake refreshes",
+  "Signals, pricing, audit, and ledger views are built for research workflow",
+  "Coverage pages track which sports and entities are currently live",
 ];
 
 export default function Layout() {
@@ -70,7 +70,7 @@ export default function Layout() {
         <div className="border-b border-white/10 bg-black/35">
           <div className="max-w-[1720px] mx-auto px-3 sm:px-4 min-h-9 flex items-center gap-3 overflow-hidden">
             <span className="shrink-0 rounded-sm bg-red-500 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white">
-              Live
+              Workspace
             </span>
             <div className="flex min-w-0 flex-1 items-center gap-6 overflow-hidden text-[11px] uppercase tracking-wide text-muted-foreground">
               {tickerItems.map((item) => (
@@ -83,7 +83,7 @@ export default function Layout() {
         </div>
 
         <div className="max-w-[1720px] mx-auto px-3 sm:px-4 min-h-16 flex items-center justify-between gap-4">
-          <NavLink to="/" className="flex items-center gap-3 min-w-0" aria-label="Game Stat Pulse market review desk">
+          <NavLink to="/" className="flex items-center gap-3 min-w-0" aria-label="Game Stat Pulse sports insight desk">
             <div className="w-10 h-10 rounded-md bg-primary text-primary-foreground flex items-center justify-center text-sm font-black shadow-[0_0_32px_hsl(var(--primary)/0.35)] shrink-0">
               GSP
             </div>
@@ -92,7 +92,7 @@ export default function Layout() {
                 Game Stat Pulse
               </div>
               <div className="hidden min-[390px]:block text-[10px] uppercase tracking-[0.24em] text-primary truncate">
-                Sportsbook Data Desk
+                Sports Insight Desk
               </div>
             </div>
           </NavLink>
@@ -130,15 +130,15 @@ export default function Layout() {
         <div className="border-t border-white/10 bg-white/[0.035]">
           <div className="no-scrollbar max-w-[1720px] mx-auto px-3 sm:px-4 overflow-x-auto">
             <div className="flex min-h-11 items-center gap-2">
-              {sportRail.map(([label, price]) => (
+              {workspaceRail.map(([label,detail]) => (
                 <button
                   key={label}
                   type="button"
                   className="min-h-8 shrink-0 rounded-md border border-white/10 bg-black/25 px-3 text-left text-xs font-semibold text-foreground/85 hover:border-primary/50 hover:text-primary"
                 >
                   <span className="mr-2 uppercase">{label}</span>
-                  <span className={price.startsWith("+") || price === "ON" ? "text-primary" : "text-secondary"}>
-                    {price}
+                  <span className={detail === "Health" || detail === "Validation" ? "text-secondary" : "text-primary"}>
+                    {detail}
                   </span>
                 </button>
               ))}
@@ -152,7 +152,7 @@ export default function Layout() {
       </main>
 
       <footer className="hidden lg:block border-t border-white/10 py-4 text-center text-xs text-muted-foreground">
-        Sports betting research workspace. Review source feeds before modeling, simulation, or staking logic.
+        Sports insight workspace for feed review, modeling, validation, and performance analysis.
       </footer>
 
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-[hsl(var(--navy-deep))]/95 backdrop-blur-xl border-t border-white/10 pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">

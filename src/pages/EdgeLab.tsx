@@ -175,7 +175,7 @@ export default function EdgeLab() {
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 space-y-4">
           <section className="surface-card p-4">
-            <div className="text-[10px] uppercase tracking-[0.22em] text-primary">Input ticket</div>
+            <div className="text-[10px] uppercase tracking-[0.22em] text-primary">Scenario inputs</div>
             <h2 className="mt-1 text-lg font-black">Line and model estimate</h2>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <Field label="Ticket label" value={label} onChange={setLabel} />

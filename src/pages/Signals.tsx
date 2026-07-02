@@ -88,7 +88,7 @@ export default function Signals() {
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
                 These are descriptive indicators from historical and live feeds. They are not picks, guarantees, or
-                staking advice. Market edge needs odds, prices, injuries, and model validation.
+                recommendations. Market interpretation still needs prices, injuries, and model validation.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -228,9 +228,9 @@ export default function Signals() {
             <div className="mt-4 space-y-3">
               <ChecklistItem status="ok" title="Historical results" body="NBA and MLB fallback game results are available." />
               <ChecklistItem status="ok" title="Standings context" body="Current fallback standings are available." />
-              <ChecklistItem status="warn" title="Odds and prices" body="Public fallback does not include sportsbook odds yet." />
+              <ChecklistItem status="warn" title="Odds and prices" body="Public fallback does not include market pricing feeds yet." />
               <ChecklistItem status="warn" title="Availability inputs" body="Injury, lineup, and roster feeds need a successful data-lake publish." />
-              <ChecklistItem status="warn" title="Model validation" body="Backtests, calibration, and staking rules still need to be built." />
+              <ChecklistItem status="warn" title="Model validation" body="Backtests, calibration, and decision rules still need to be built." />
             </div>
           </section>
 

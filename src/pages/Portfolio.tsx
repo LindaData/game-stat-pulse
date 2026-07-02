@@ -178,10 +178,10 @@ export default function Portfolio() {
             </div>
             <div>
               <h1 className="text-2xl sm:text-4xl font-black leading-tight">
-                Rank a full betting card by edge, EV, and capped exposure.
+                Compare a batch of scenarios by edge, EV, and capped exposure.
               </h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Batch price your model probabilities against sportsbook odds, then export the ranked card for review.
+                Batch price your model probabilities against market odds, then export the ranked scenarios for review.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -361,7 +361,7 @@ export default function Portfolio() {
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
               <p>Rows are ranked from your probabilities and entered odds; invalid prices are excluded from totals.</p>
               <p>Portfolio EV is calculated from capped stake size, not full Kelly size.</p>
-              <p>Correlated bets still need manual review before any staking decision.</p>
+              <p>Correlated rows still need manual review before using the output in any sizing workflow.</p>
             </div>
           </section>
         </aside>

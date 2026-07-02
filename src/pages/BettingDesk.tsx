@@ -60,16 +60,16 @@ const WORKFLOW = [
     action: "Open signals",
   },
   {
-    title: "Price a line",
-    body: "Enter your model probability and the sportsbook odds to calculate implied probability, EV, and capped sizing.",
+    title: "Price a scenario",
+    body: "Enter your model probability and a market line to calculate implied probability, EV, and capped sizing.",
     href: "/edge",
-    action: "Open edge lab",
+    action: "Open pricing lab",
   },
   {
-    title: "Build a card",
-    body: "Batch rank model probabilities against market prices, then export the positive-EV portfolio for review.",
+    title: "Compare a batch",
+    body: "Rank multiple model probabilities against market prices, then export the best scenarios for review.",
     href: "/portfolio",
-    action: "Open portfolio lab",
+    action: "Open scenario lab",
   },
   {
     title: "Audit the model",
@@ -78,10 +78,10 @@ const WORKFLOW = [
     action: "Open model audit",
   },
   {
-    title: "Track bankroll",
-    body: "Log open and settled wagers to monitor exposure, realized P&L, ROI, CLV, and current bankroll.",
+    title: "Track performance",
+    body: "Log open and settled positions to monitor exposure, realized return, CLV, and capital movement.",
     href: "/bankroll",
-    action: "Open bankroll ledger",
+    action: "Open performance ledger",
   },
   {
     title: "Review priority feeds",
@@ -129,31 +129,25 @@ export default function BettingDesk() {
   const modelGroups = useMemo(() => summarizeGroups(entries), [entries]);
   const sportRows = useMemo(() => summarizeSports(entries), [entries]);
   const priorityFeeds = useMemo(() => rankPriorityFeeds(entries), [entries]);
-  const heroImage = `${import.meta.env.BASE_URL}assets/sportsbook-market-board.png`;
   const sourceLabel = catalog?.source === "r2" ? "Fresh data lake" : "Fallback catalog";
 
   return (
     <div className="space-y-5 pb-28 lg:pb-0">
-      <header className="relative overflow-hidden rounded-lg border border-white/10 bg-[hsl(var(--navy-deep))] sportsbook-glow">
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-38"
-          style={{ backgroundImage: `url('${heroImage}')` }}
-          aria-hidden="true"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--navy-deep))_0%,hsl(var(--navy-deep)/0.9)_44%,hsl(var(--navy-deep)/0.58)_100%)]" aria-hidden="true" />
+      <header className="relative overflow-hidden rounded-lg border border-white/10 bg-[linear-gradient(135deg,hsl(var(--navy-light)),hsl(var(--navy-deep)))] sportsbook-glow">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.14),transparent_28rem),radial-gradient(circle_at_top_right,hsl(var(--secondary)/0.12),transparent_22rem)]" aria-hidden="true" />
         <div className="relative grid gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-end">
           <div className="max-w-3xl space-y-4">
             <div className="inline-flex items-center gap-2 rounded-md border border-secondary/40 bg-secondary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.24em] text-secondary">
               <Target className="h-3.5 w-3.5" />
-              Personal Betting Data Desk
+              Research Desk
             </div>
             <div>
               <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black leading-[0.98] tracking-normal">
-                Turn source feeds into a model-ready betting workflow.
+                See feed readiness before you model anything.
               </h1>
               <p className="mt-3 max-w-2xl text-sm sm:text-base text-foreground/[0.76]">
-                One screen for feed readiness, market coverage, availability inputs, and the next data checks before
-                building or running a betting model.
+                One surface for fixtures, odds, availability, and performance inputs so you can understand what is
+                usable now, what is stale, and what still needs validation before downstream analysis.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -175,7 +169,7 @@ export default function BettingDesk() {
           <aside className="market-panel bg-black/40 p-4 backdrop-blur-md">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Model readiness</div>
+                <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">Coverage snapshot</div>
                 <div className="mt-1 text-2xl font-black tabular-nums">{stats.readiness}%</div>
               </div>
               <LineChart className="h-9 w-9 text-primary" />
@@ -185,8 +179,8 @@ export default function BettingDesk() {
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <DeskCell label="Ready feeds" value={stats.available} />
-              <DeskCell label="Needs work" value={stats.degraded + stats.missing} tone="amber" />
-              <DeskCell label="Betting inputs" value={stats.bettingRelevant} />
+              <DeskCell label="Needs review" value={stats.degraded + stats.missing} tone="amber" />
+              <DeskCell label="Core inputs" value={stats.bettingRelevant} />
               <DeskCell label="Sports" value={stats.sports} tone="amber" />
             </div>
           </aside>
@@ -251,7 +245,7 @@ export default function BettingDesk() {
                     <th className="p-3">Feeds</th>
                     <th className="p-3">Ready</th>
                     <th className="p-3">Action needed</th>
-                    <th className="p-3">Betting inputs</th>
+                    <th className="p-3">Core inputs</th>
                     <th className="p-3">Readiness</th>
                   </tr>
                 </thead>

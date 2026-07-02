@@ -119,7 +119,7 @@ export default function ModelAudit() {
               </Button>
               <Button variant="outline" className="border-secondary/45 text-secondary hover:bg-secondary/10" asChild>
                 <Link to="/portfolio">
-                  <ClipboardList className="h-4 w-4" /> Build card
+                  <ClipboardList className="h-4 w-4" /> Open scenarios
                 </Link>
               </Button>
             </div>
