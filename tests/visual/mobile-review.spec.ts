@@ -26,7 +26,7 @@ test("mobile review workspace renders and persists notes", async ({ page }) => {
   );
 
   const appHome = page.getByRole("link", {
-    name: /Game Stat Pulse approval workspace/i,
+    name: /Game Stat Pulse sports insight desk/i,
   });
   await expect(appHome).toBeVisible();
 
